@@ -15,5 +15,5 @@ Run sample code using 'g++ <file\_name> `pkg-config opencv --cflags --libs'
 
 ##Build and run neuron segmentation package
 
-Inside the project root directory, type make to build the project.
+Inside the project root directory, type 'make' to build the project.
 A binary called 'segment' will be created.
