@@ -1,0 +1,8 @@
+# Project specific
+segment
+tags
+*.txt
+a.out
+*.o
+data
+result
