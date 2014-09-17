@@ -1,9 +1,10 @@
-#include "NeuronColorChannelSeparator.hpp"
 #include <memory>
 #include <dirent.h>
 #include <string.h>
 #include <sstream>
 #include <sys/stat.h>
+#include "NeuronColorChannelSeparator.hpp"
+#include "CannyDetector.hpp"
 
 int main (int argc, char *argv[]) {
 
@@ -37,6 +38,14 @@ int main (int argc, char *argv[]) {
     if (stat(out_directory.c_str(), &st) == -1) {
         mkdir(out_directory.c_str(), 0700);
     }
+
+    // Create the color channel separator
+    std::unique_ptr<NeuronColorChannelSeparator> col_ch_separator = 
+            std::unique_ptr<NeuronColorChannelSeparator>(new NeuronColorChannelSeparator(false));
+
+    // Create the canny edge detector
+    std::unique_ptr<CannyDetector> canny_detect = 
+            std::unique_ptr<CannyDetector>(new CannyDetector());
 
     for (uint8_t z_index = 1; z_index <= z_count; z_index++) {
 
@@ -87,9 +96,6 @@ int main (int argc, char *argv[]) {
         TIFFSetWarningHandler(error_handler);
 
         // Extract the rgb streams for each input image
-        std::unique_ptr<NeuronColorChannelSeparator> col_ch_separator = 
-            std::unique_ptr<NeuronColorChannelSeparator>(new NeuronColorChannelSeparator(false));
-
         col_ch_separator->printChannelImage(in, out_red, true, false, false);
         TIFFWriteDirectory(out_red);
 
@@ -99,15 +105,22 @@ int main (int argc, char *argv[]) {
         col_ch_separator->printChannelImage(in, out_blue, false, false, true);
         TIFFWriteDirectory(out_blue);
 
+        // Apply Canny Edge detection
+        std::string canny_blue_filename = out_blue_filename;
+        out_blue_filename.insert (out_blue_filename.find_first_of("."), "_canny", 6);
+        std::cout << canny_blue_filename << "," << out_blue_filename << std::endl;
+        //canny_detect->detectEdges (canny_blue_filename, out_blue_filename);
+
         // Segment the blue image using jseg
-        out_blue_filename.insert(out_blue_filename.find_first_of(" "), "\\", 1);
+        out_blue_filename.insert (out_blue_filename.find_first_of(" "), "\\", 1);
         uint32_t width = 0, height = 0;
         TIFFGetField(in, TIFFTAG_IMAGEWIDTH, &width);
         TIFFGetField(in, TIFFTAG_IMAGELENGTH, &height);
         std::string jseg_command = "./segdist -i " + out_blue_filename + " -t 2 -s " + 
                                    std::to_string(height) + " " + std::to_string(width) + 
                                    " -r9 " + out_blue_filename + ".gif";
-        system(jseg_command.c_str());
+        std::cout << jseg_command << std::endl;
+        //system(jseg_command.c_str());
 
         TIFFClose(in);
         TIFFClose(out_red);

@@ -1,6 +1,6 @@
 CXX= g++
-CXXFLAGS= -c -std=c++11 -Wall -Werror
-LDFLAGS= -ltiff
+CXXFLAGS+= -c -std=c++11 -Wall -Werror `pkg-config --cflags opencv`
+LDFLAGS+= -ltiff `pkg-config --libs opencv`
 SRC= src
 JSEG_SRC= third_party/jseg
 SOURCES= $(wildcard $(SRC)/*.cpp)
