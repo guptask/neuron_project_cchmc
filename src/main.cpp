@@ -99,6 +99,16 @@ int main (int argc, char *argv[]) {
         col_ch_separator->printChannelImage(in, out_blue, false, false, true);
         TIFFWriteDirectory(out_blue);
 
+        // Segment the blue image using jseg
+        out_blue_filename.insert(out_blue_filename.find_first_of(" "), "\\", 1);
+        uint32_t width = 0, height = 0;
+        TIFFGetField(in, TIFFTAG_IMAGEWIDTH, &width);
+        TIFFGetField(in, TIFFTAG_IMAGELENGTH, &height);
+        std::string jseg_command = "./segdist -i " + out_blue_filename + " -t 2 -s " + 
+                                   std::to_string(height) + " " + std::to_string(width) + 
+                                   " -r9 " + out_blue_filename + ".gif";
+        system(jseg_command.c_str());
+
         TIFFClose(in);
         TIFFClose(out_red);
         TIFFClose(out_green);
