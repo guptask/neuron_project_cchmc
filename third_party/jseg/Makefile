@@ -1,6 +1,5 @@
 CC=gcc
-CFLAGS = -O3 -I/usr1.bizet/users/deng/Software/jpeg-6b -L/usr1.bizet/users/deng/Software/jpeg-6b
-# CFLAGS = -O2 -I/usr1.bizet/users/deng/Software/jpeg-6b
+CFLAGS = -O3 -I/home/sounak/ssd/neuron_project_cchmc/third_party/jpeg-6b -L/home/sounak/ssd/neuron_project_cchmc/third_party/jpeg-6b
 LIBS = -ljpeg -lm
 
 all: segdist
@@ -10,7 +9,7 @@ SEGF = segment.o reggrow.o jfunc.o quan.o ioutil.o imgutil.o mathutil.o  memutil
 
 segdist: main.o $(SEGF) $(XVF) $(JPG)
 	$(CC) $(CFLAGS) -o segdist main.o $(SEGF) $(XVF) $(JPG) $(LIBS)
-#	cp segdist /new1a.maya/JSEG/software/segsun
+mv segdist ../../
 
 main.o: main.c ioutil.c imgutil.c memutil.c segment.h
 segment.o: segment.c ioutil.c imgutil.c memutil.c segment.h
