@@ -9,7 +9,7 @@ SEGF = segment.o reggrow.o jfunc.o quan.o ioutil.o imgutil.o mathutil.o  memutil
 
 segdist: main.o $(SEGF) $(XVF) $(JPG)
 	$(CC) $(CFLAGS) -o segdist main.o $(SEGF) $(XVF) $(JPG) $(LIBS)
-mv segdist ../../
+	mv segdist ../../jseg
 
 main.o: main.c ioutil.c imgutil.c memutil.c segment.h
 segment.o: segment.c ioutil.c imgutil.c memutil.c segment.h
@@ -21,4 +21,7 @@ imgutil.o: imgutil.c
 mathutil.o: mathutil.c
 memutil.o: memutil.c
 
+clean:
+	@rm -f $(EXECUTABLE) *.o
 
+.PHONY: all clean
