@@ -1,5 +1,6 @@
 # Project specific
 segment
+segdist
 tags
 *.txt
 a.out
