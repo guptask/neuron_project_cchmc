@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include <memory>
 #include <dirent.h>
 #include <string.h>
@@ -118,7 +119,7 @@ int main (int argc, char *argv[]) {
         out_blue_filename.insert (out_blue_filename.find_first_of("."), "_canny", 6);
         canny_detect->detectEdges (canny_blue_filename, out_blue_filename);
 
-        // Segment the blue image using jseg
+        // Segment the blue image using jseg with fork
         out_blue_filename.insert (out_blue_filename.find_first_of(" "), "\\", 1);
         uint32_t width = 0, height = 0;
         TIFFGetField(in, TIFFTAG_IMAGEWIDTH, &width);
@@ -126,7 +127,10 @@ int main (int argc, char *argv[]) {
         std::string jseg_command = "./segdist -i " + out_blue_filename + " -t 2 -s " + 
                                    std::to_string(height) + " " + std::to_string(width) + 
                                    " -r9 " + out_blue_filename + ".gif";
-        system(jseg_command.c_str());
+        if (fork() == 0) { 
+            system(jseg_command.c_str());
+            exit(0);
+        } 
 
         TIFFClose(in);
         TIFFClose(out_red);
