@@ -106,10 +106,17 @@ int main (int argc, char *argv[]) {
         TIFFWriteDirectory(out_blue);
 
         // Apply Canny Edge detection
+        std::string canny_red_filename = out_red_filename;
+        out_red_filename.insert (out_red_filename.find_first_of("."), "_canny", 6);
+        canny_detect->detectEdges (canny_red_filename, out_red_filename);
+
+        std::string canny_green_filename = out_green_filename;
+        out_green_filename.insert (out_green_filename.find_first_of("."), "_canny", 6);
+        canny_detect->detectEdges (canny_green_filename, out_green_filename);
+
         std::string canny_blue_filename = out_blue_filename;
         out_blue_filename.insert (out_blue_filename.find_first_of("."), "_canny", 6);
-        std::cout << canny_blue_filename << "," << out_blue_filename << std::endl;
-        //canny_detect->detectEdges (canny_blue_filename, out_blue_filename);
+        canny_detect->detectEdges (canny_blue_filename, out_blue_filename);
 
         // Segment the blue image using jseg
         out_blue_filename.insert (out_blue_filename.find_first_of(" "), "\\", 1);
@@ -119,8 +126,7 @@ int main (int argc, char *argv[]) {
         std::string jseg_command = "./segdist -i " + out_blue_filename + " -t 2 -s " + 
                                    std::to_string(height) + " " + std::to_string(width) + 
                                    " -r9 " + out_blue_filename + ".gif";
-        std::cout << jseg_command << std::endl;
-        //system(jseg_command.c_str());
+        system(jseg_command.c_str());
 
         TIFFClose(in);
         TIFFClose(out_red);
