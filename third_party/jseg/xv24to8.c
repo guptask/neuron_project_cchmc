@@ -1129,10 +1129,10 @@ struct box {
 
 #ifdef __STDC__
   static colorhist_vector mediancut(colorhist_vector, int, int, int, int);
-  static int              redcompare  (colorhist_vector, colorhist_vector);
-  static int              greencompare(colorhist_vector, colorhist_vector);
-  static int              bluecompare (colorhist_vector, colorhist_vector);
-  static int              sumcompare  (box_vector, box_vector);
+  static int              redcompare  (const void *ptr1, const void *ptr2);
+  static int              greencompare(const void *ptr1, const void *ptr2);
+  static int              bluecompare (const void *ptr1, const void *ptr2);
+  static int              sumcompare  (const void *ptr1, const void *ptr2);
   static colorhist_vector ppm_computecolorhist(pixel **, int,int,int,int *);
   static colorhash_table  ppm_computecolorhash(pixel **, int,int,int,int *);
   static colorhist_vector ppm_colorhashtocolorhist(colorhash_table, int);
@@ -1417,13 +1417,11 @@ static colorhist_vector mediancut( chv, colors, sum, maxval, newcolors )
       bl = PPM_LUMIN(p);
 
       if (rl >= gl && rl >= bl)
-	qsort( (char*) &(chv[indx]), clrs, sizeof(struct colorhist_item),
-	      redcompare );
+	    qsort( (char*) &(chv[indx]), clrs, sizeof(struct colorhist_item), redcompare );
       else if (gl >= bl)
-	qsort( (char*) &(chv[indx]), clrs, sizeof(struct colorhist_item),
-	      greencompare );
-      else qsort( (char*) &(chv[indx]), clrs, sizeof(struct colorhist_item),
-		 bluecompare );
+	    qsort( (char*) &(chv[indx]), clrs, sizeof(struct colorhist_item), greencompare );
+      else
+        qsort( (char*) &(chv[indx]), clrs, sizeof(struct colorhist_item), bluecompare );
     }
 
     /*
@@ -1486,30 +1484,30 @@ static colorhist_vector mediancut( chv, colors, sum, maxval, newcolors )
 
 
 /**********************************/
-static int redcompare(ch1, ch2)
-     colorhist_vector ch1, ch2;
+static int redcompare(const void *ptr1, const void *ptr2)
 {
+  const colorhist_vector ch1 = (const colorhist_vector)ptr1, ch2 = (const colorhist_vector) ptr2;
   return (int) PPM_GETR( ch1->color ) - (int) PPM_GETR( ch2->color );
 }
 
 /**********************************/
-static int greencompare(ch1, ch2)
-     colorhist_vector ch1, ch2;
+static int greencompare(const void *ptr1, const void *ptr2)
 {
+  const colorhist_vector ch1 = (const colorhist_vector)ptr1, ch2 = (const colorhist_vector)ptr2;
   return (int) PPM_GETG( ch1->color ) - (int) PPM_GETG( ch2->color );
 }
 
 /**********************************/
-static int bluecompare( ch1, ch2 )
-     colorhist_vector ch1, ch2;
+static int bluecompare(const void *ptr1, const void *ptr2)
 {
+  const colorhist_vector ch1 = (const colorhist_vector)ptr1, ch2 = (const colorhist_vector)ptr2;
   return (int) PPM_GETB( ch1->color ) - (int) PPM_GETB( ch2->color );
 }
 
 /**********************************/
-static int sumcompare( b1, b2 )
-     box_vector b1, b2;
+static int sumcompare(const void *ptr1, const void *ptr2)
 {
+  const box_vector b1 = (const box_vector)ptr1, b2 = (const box_vector)ptr2;
   return b2->sum - b1->sum;
 }
 
