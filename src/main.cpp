@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include "NeuronColorChannelSeparator.hpp"
 #include "CannyDetector.hpp"
+#include "WatershedSegmentation.hpp"
 
 int main (int argc, char *argv[]) {
 
@@ -47,6 +48,10 @@ int main (int argc, char *argv[]) {
     // Create the canny edge detector
     std::unique_ptr<CannyDetector> canny_detect = 
             std::unique_ptr<CannyDetector>(new CannyDetector());
+
+    // Create the watershed segmentor
+    std::unique_ptr<WatershedSegmentation> watershed_segment = 
+            std::unique_ptr<WatershedSegmentation>(new WatershedSegmentation());
 
     for (uint8_t z_index = 1; z_index <= z_count; z_index++) {
 
@@ -106,6 +111,19 @@ int main (int argc, char *argv[]) {
         col_ch_separator->printChannelImage(in, out_blue, false, false, true);
         TIFFWriteDirectory(out_blue);
 
+        // Apply watershed segmentation
+        std::string watershed_red_filename = out_red_filename;
+        out_red_filename.insert (out_red_filename.find_first_of("."), "_watershed", 10);
+        watershed_segment->segment (watershed_red_filename, out_red_filename);
+
+        std::string watershed_green_filename = out_green_filename;
+        out_green_filename.insert (out_green_filename.find_first_of("."), "_watershed", 10);
+        watershed_segment->segment (watershed_green_filename, out_green_filename);
+
+        std::string watershed_blue_filename = out_blue_filename;
+        out_blue_filename.insert (out_blue_filename.find_first_of("."), "_watershed", 10);
+        watershed_segment->segment (watershed_blue_filename, out_blue_filename);
+
         // Apply Canny Edge detection
         std::string canny_red_filename = out_red_filename;
         out_red_filename.insert (out_red_filename.find_first_of("."), "_canny", 6);
@@ -119,6 +137,7 @@ int main (int argc, char *argv[]) {
         out_blue_filename.insert (out_blue_filename.find_first_of("."), "_canny", 6);
         canny_detect->detectEdges (canny_blue_filename, out_blue_filename);
 
+#if 0
         // Segment the blue image using jseg with fork
         out_blue_filename.insert (out_blue_filename.find_first_of(" "), "\\", 1);
         uint32_t width = 0, height = 0;
@@ -131,7 +150,7 @@ int main (int argc, char *argv[]) {
             system(jseg_command.c_str());
             exit(0);
         } 
-
+#endif
         TIFFClose(in);
         TIFFClose(out_red);
         TIFFClose(out_green);
