@@ -13,10 +13,10 @@
     if (TIFFGetField(in, tag, &v)) TIFFSetField(out, tag, v)
 
 
-class NeuronColorChannelSeparator {
+class ColorChannelSeparator {
 
 public:
-    NeuronColorChannelSeparator (bool is_alpha_needed);
+    ColorChannelSeparator (bool is_alpha_needed);
 
     void printChannelImage (TIFF *in, TIFF *out, 
                             bool is_red, bool is_green, bool is_blue);

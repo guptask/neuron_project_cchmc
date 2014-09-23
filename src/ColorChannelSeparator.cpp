@@ -1,9 +1,9 @@
-#include "NeuronColorChannelSeparator.hpp"
+#include "ColorChannelSeparator.hpp"
 
-NeuronColorChannelSeparator::NeuronColorChannelSeparator (bool is_alpha_needed) : 
+ColorChannelSeparator::ColorChannelSeparator (bool is_alpha_needed) : 
     is_alpha_needed_(is_alpha_needed) {}
 
-void NeuronColorChannelSeparator::printChannelImage (
+void ColorChannelSeparator::printChannelImage (
         TIFF *in, TIFF *out, bool is_red, bool is_green, bool is_blue) {
 
     uint32_t width = 0, height = 0, long_v = 0;
@@ -43,7 +43,7 @@ void NeuronColorChannelSeparator::printChannelImage (
 }
 
 
-void NeuronColorChannelSeparator::modifyChPrintWholeImage (
+void ColorChannelSeparator::modifyChPrintWholeImage (
         TIFF *in, TIFF *out, bool is_red, bool is_green, bool is_blue) {
 
     uint32_t *raster = NULL, width = 0, height = 0, row = 0;

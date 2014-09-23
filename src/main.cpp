@@ -4,7 +4,7 @@
 #include <string.h>
 #include <sstream>
 #include <sys/stat.h>
-#include "NeuronColorChannelSeparator.hpp"
+#include "ColorChannelSeparator.hpp"
 #include "CannyDetector.hpp"
 #include "WatershedSegmentation.hpp"
 
@@ -42,8 +42,8 @@ int main (int argc, char *argv[]) {
     }
 
     // Create the color channel separator
-    std::unique_ptr<NeuronColorChannelSeparator> col_ch_separator = 
-            std::unique_ptr<NeuronColorChannelSeparator>(new NeuronColorChannelSeparator(false));
+    std::unique_ptr<ColorChannelSeparator> col_ch_separator = 
+            std::unique_ptr<ColorChannelSeparator>(new ColorChannelSeparator(false));
 
     // Create the canny edge detector
     std::unique_ptr<CannyDetector> canny_detect = 
