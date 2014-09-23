@@ -102,40 +102,40 @@ int main (int argc, char *argv[]) {
         TIFFSetWarningHandler(error_handler);
 
         // Extract the rgb streams for each input image
-        col_ch_separator->printChannelImage(in, out_red, true, false, false);
+        col_ch_separator->apply (in, out_red, true, false, false);
         TIFFWriteDirectory(out_red);
 
-        col_ch_separator->printChannelImage(in, out_green, false, true, false);
+        col_ch_separator->apply (in, out_green, false, true, false);
         TIFFWriteDirectory(out_green);
 
-        col_ch_separator->printChannelImage(in, out_blue, false, false, true);
+        col_ch_separator->apply (in, out_blue, false, false, true);
         TIFFWriteDirectory(out_blue);
 
         // Apply watershed segmentation
         std::string watershed_red_filename = out_red_filename;
         out_red_filename.insert (out_red_filename.find_first_of("."), "_watershed", 10);
-        watershed_segment->segment (watershed_red_filename, out_red_filename);
+        watershed_segment->apply (watershed_red_filename, out_red_filename);
 
         std::string watershed_green_filename = out_green_filename;
         out_green_filename.insert (out_green_filename.find_first_of("."), "_watershed", 10);
-        watershed_segment->segment (watershed_green_filename, out_green_filename);
+        watershed_segment->apply (watershed_green_filename, out_green_filename);
 
         std::string watershed_blue_filename = out_blue_filename;
         out_blue_filename.insert (out_blue_filename.find_first_of("."), "_watershed", 10);
-        watershed_segment->segment (watershed_blue_filename, out_blue_filename);
+        watershed_segment->apply (watershed_blue_filename, out_blue_filename);
 
         // Apply Canny Edge detection
         std::string canny_red_filename = out_red_filename;
         out_red_filename.insert (out_red_filename.find_first_of("."), "_canny", 6);
-        canny_detect->detectEdges (canny_red_filename, out_red_filename);
+        canny_detect->apply (canny_red_filename, out_red_filename);
 
         std::string canny_green_filename = out_green_filename;
         out_green_filename.insert (out_green_filename.find_first_of("."), "_canny", 6);
-        canny_detect->detectEdges (canny_green_filename, out_green_filename);
+        canny_detect->apply (canny_green_filename, out_green_filename);
 
         std::string canny_blue_filename = out_blue_filename;
         out_blue_filename.insert (out_blue_filename.find_first_of("."), "_canny", 6);
-        canny_detect->detectEdges (canny_blue_filename, out_blue_filename);
+        canny_detect->apply (canny_blue_filename, out_blue_filename);
 
         TIFFClose(in);
         TIFFClose(out_red);

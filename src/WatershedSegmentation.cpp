@@ -10,7 +10,7 @@ Mat WatershedSegmentation::process(Mat& image, Mat& marker_image) {
     return marker_image;
 }
 
-void WatershedSegmentation::segment (std::string in_file, std::string out_file) {
+void WatershedSegmentation::apply (std::string in_file, std::string out_file) {
 
     Mat image = imread (in_file.c_str());
     Mat binary;

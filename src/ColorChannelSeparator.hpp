@@ -18,8 +18,7 @@ class ColorChannelSeparator {
 public:
     ColorChannelSeparator (bool is_alpha_needed);
 
-    void printChannelImage (TIFF *in, TIFF *out, 
-                            bool is_red, bool is_green, bool is_blue);
+    void apply (TIFF *in, TIFF *out, bool is_red, bool is_green, bool is_blue);
 
 private:
     void modifyChPrintWholeImage (TIFF *in, TIFF *out, 

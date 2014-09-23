@@ -1,6 +1,6 @@
 #include "CannyDetector.hpp"
 
-void CannyDetector::detectEdges (std::string in_file, std::string out_file) {
+void CannyDetector::apply (std::string in_file, std::string out_file) {
 
     Mat src = imread (in_file.c_str());
     if (src.empty()) return;

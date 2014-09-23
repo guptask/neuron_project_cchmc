@@ -3,7 +3,7 @@
 ColorChannelSeparator::ColorChannelSeparator (bool is_alpha_needed) : 
     is_alpha_needed_(is_alpha_needed) {}
 
-void ColorChannelSeparator::printChannelImage (
+void ColorChannelSeparator::apply (
         TIFF *in, TIFF *out, bool is_red, bool is_green, bool is_blue) {
 
     uint32_t width = 0, height = 0, long_v = 0;

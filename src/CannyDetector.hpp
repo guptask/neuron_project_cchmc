@@ -15,7 +15,7 @@ class CannyDetector {
 public:
     CannyDetector() = default;
 
-    void detectEdges (std::string in_file, std::string out_file);
+    void apply (std::string in_file, std::string out_file);
 };
 
 #endif

@@ -16,11 +16,13 @@ class WatershedSegmentation {
 public:
     WatershedSegmentation() = default;
 
+    void apply (std::string in_file, std::string out_file);
+
+
+private:
     void setMarkers (Mat& marker_image);
 
     Mat process (Mat& image, Mat& marker_image);
-
-    void segment (std::string in_file, std::string out_file);
 };
 
 #endif
