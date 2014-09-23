@@ -5,8 +5,9 @@
 #include <sstream>
 #include <sys/stat.h>
 #include "ColorChannelSeparator.hpp"
-#include "CannyDetector.hpp"
+#include "EqualizeHistogram.hpp"
 #include "WatershedSegmentation.hpp"
+#include "CannyDetector.hpp"
 
 int main (int argc, char *argv[]) {
 
@@ -44,6 +45,10 @@ int main (int argc, char *argv[]) {
     // Create the color channel separator
     std::unique_ptr<ColorChannelSeparator> col_ch_separator = 
             std::unique_ptr<ColorChannelSeparator>(new ColorChannelSeparator(false));
+
+    // Create the histogram equalizer
+    std::unique_ptr<EqualizeHistogram> equalize_hist = 
+            std::unique_ptr<EqualizeHistogram>(new EqualizeHistogram());
 
     // Create the canny edge detector
     std::unique_ptr<CannyDetector> canny_detect = 
@@ -110,6 +115,19 @@ int main (int argc, char *argv[]) {
 
         col_ch_separator->apply (in, out_blue, false, false, true);
         TIFFWriteDirectory(out_blue);
+
+        // Equalize histogram
+        std::string equalize_red_filename = out_red_filename;
+        out_red_filename.insert (out_red_filename.find_first_of("."), "_equalize", 9);
+        equalize_hist->apply (equalize_red_filename, out_red_filename);
+
+        std::string equalize_green_filename = out_green_filename;
+        out_green_filename.insert (out_green_filename.find_first_of("."), "_equalize", 9);
+        equalize_hist->apply (equalize_green_filename, out_green_filename);
+
+        std::string equalize_blue_filename = out_blue_filename;
+        out_blue_filename.insert (out_blue_filename.find_first_of("."), "_equalize", 9);
+        equalize_hist->apply (equalize_blue_filename, out_blue_filename);
 
         // Apply watershed segmentation
         std::string watershed_red_filename = out_red_filename;
