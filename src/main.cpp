@@ -61,7 +61,10 @@ int main (int argc, char *argv[]) {
     for (uint8_t z_index = 1; z_index <= z_count; z_index++) {
 
         // Create the input filename and rgb stream output filenames
-        std::string in_filename, out_red_filename, out_green_filename, out_blue_filename;
+        std::string in_filename, 
+                    out_red_filename, out_green_filename, out_blue_filename, 
+                    red_filename, green_filename, blue_filename;
+
         if (z_index < 10) {
             in_filename  = str + token + "_z0" + std::to_string(z_index) + "c1+2+3.tif";
             out_red_filename   = out_directory + "z0" + std::to_string(z_index) + "_red.tif";
@@ -117,43 +120,43 @@ int main (int argc, char *argv[]) {
         TIFFWriteDirectory(out_blue);
 
         // Equalize histogram
-        std::string equalize_red_filename = out_red_filename;
+        red_filename = out_red_filename;
         out_red_filename.insert (out_red_filename.find_first_of("."), "_equalize", 9);
-        equalize_hist->apply (equalize_red_filename, out_red_filename);
+        equalize_hist->apply (red_filename, out_red_filename);
 
-        std::string equalize_green_filename = out_green_filename;
+        green_filename = out_green_filename;
         out_green_filename.insert (out_green_filename.find_first_of("."), "_equalize", 9);
-        equalize_hist->apply (equalize_green_filename, out_green_filename);
+        equalize_hist->apply (green_filename, out_green_filename);
 
-        std::string equalize_blue_filename = out_blue_filename;
+        blue_filename = out_blue_filename;
         out_blue_filename.insert (out_blue_filename.find_first_of("."), "_equalize", 9);
-        equalize_hist->apply (equalize_blue_filename, out_blue_filename);
+        equalize_hist->apply (blue_filename, out_blue_filename);
 
         // Apply watershed segmentation
-        std::string watershed_red_filename = out_red_filename;
+        red_filename = out_red_filename;
         out_red_filename.insert (out_red_filename.find_first_of("."), "_watershed", 10);
-        watershed_segment->apply (watershed_red_filename, out_red_filename);
+        watershed_segment->apply (red_filename, out_red_filename);
 
-        std::string watershed_green_filename = out_green_filename;
+        green_filename = out_green_filename;
         out_green_filename.insert (out_green_filename.find_first_of("."), "_watershed", 10);
-        watershed_segment->apply (watershed_green_filename, out_green_filename);
+        watershed_segment->apply (green_filename, out_green_filename);
 
-        std::string watershed_blue_filename = out_blue_filename;
+        blue_filename = out_blue_filename;
         out_blue_filename.insert (out_blue_filename.find_first_of("."), "_watershed", 10);
-        watershed_segment->apply (watershed_blue_filename, out_blue_filename);
+        watershed_segment->apply (blue_filename, out_blue_filename);
 
         // Apply Canny Edge detection
-        std::string canny_red_filename = out_red_filename;
+        red_filename = out_red_filename;
         out_red_filename.insert (out_red_filename.find_first_of("."), "_canny", 6);
-        canny_detect->apply (canny_red_filename, out_red_filename);
+        canny_detect->apply (red_filename, out_red_filename);
 
-        std::string canny_green_filename = out_green_filename;
+        green_filename = out_green_filename;
         out_green_filename.insert (out_green_filename.find_first_of("."), "_canny", 6);
-        canny_detect->apply (canny_green_filename, out_green_filename);
+        canny_detect->apply (green_filename, out_green_filename);
 
-        std::string canny_blue_filename = out_blue_filename;
+        blue_filename = out_blue_filename;
         out_blue_filename.insert (out_blue_filename.find_first_of("."), "_canny", 6);
-        canny_detect->apply (canny_blue_filename, out_blue_filename);
+        canny_detect->apply (blue_filename, out_blue_filename);
 
         TIFFClose(in);
         TIFFClose(out_red);
