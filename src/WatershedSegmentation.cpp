@@ -14,7 +14,7 @@ void WatershedSegmentation::apply (std::string in_file, std::string out_file) {
 
     Mat image = imread (in_file.c_str());
     Mat binary;
-    cvtColor(image, binary, CV_RGB2GRAY);
+    cvtColor(image, binary, COLOR_RGB2GRAY);
     threshold(binary, binary, 10, 255, THRESH_BINARY);
 
     // Eliminate noise and smaller objects
