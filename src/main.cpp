@@ -55,7 +55,7 @@ int main (int argc, char *argv[]) {
 
     for (uint8_t z_index = 1; z_index <= z_count; z_index++) {
 
-        // Create the input filename and blue stream output filename
+        // Create the input filename and rgb stream output filenames
         std::string in_filename, out_red_filename, out_green_filename, out_blue_filename;
         if (z_index < 10) {
             in_filename  = str + token + "_z0" + std::to_string(z_index) + "c1+2+3.tif";
