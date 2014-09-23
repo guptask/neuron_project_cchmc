@@ -50,13 +50,13 @@ int main (int argc, char *argv[]) {
     std::unique_ptr<EqualizeHistogram> equalize_hist = 
             std::unique_ptr<EqualizeHistogram>(new EqualizeHistogram());
 
-    // Create the canny edge detector
-    std::unique_ptr<CannyDetector> canny_detect = 
-            std::unique_ptr<CannyDetector>(new CannyDetector());
-
     // Create the watershed segmentor
     std::unique_ptr<WatershedSegmentation> watershed_segment = 
             std::unique_ptr<WatershedSegmentation>(new WatershedSegmentation());
+
+    // Create the canny edge detector
+    std::unique_ptr<CannyDetector> canny_detect = 
+            std::unique_ptr<CannyDetector>(new CannyDetector());
 
     for (uint8_t z_index = 1; z_index <= z_count; z_index++) {
 
