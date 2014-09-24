@@ -12,7 +12,7 @@ void EqualizeHistogram::apply (std::string in_file, std::string out_file) {
     // Convert the image to grayscale
     cvtColor (src, src, COLOR_RGB2GRAY);
 
-    /// Apply Histogram Equalization
+    // Apply Histogram Equalization
     equalizeHist (src, dst);
 
     imwrite (out_file.c_str(), dst);
