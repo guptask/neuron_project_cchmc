@@ -5,7 +5,7 @@
 #include <sstream>
 #include <sys/stat.h>
 #include "ColorChannelSeparator.hpp"
-#include "EqualizeHistogram.hpp"
+#include "EnhanceFeatures.hpp"
 #include "WatershedSegmentation.hpp"
 #include "CannyDetector.hpp"
 
@@ -47,8 +47,8 @@ int main (int argc, char *argv[]) {
             std::unique_ptr<ColorChannelSeparator>(new ColorChannelSeparator(false));
 
     // Create the histogram equalizer
-    std::unique_ptr<EqualizeHistogram> equalize_hist = 
-            std::unique_ptr<EqualizeHistogram>(new EqualizeHistogram());
+    std::unique_ptr<EnhanceFeatures> equalize_hist = 
+            std::unique_ptr<EnhanceFeatures>(new EnhanceFeatures());
 
     // Create the watershed segmentor
     std::unique_ptr<WatershedSegmentation> watershed_segment = 
