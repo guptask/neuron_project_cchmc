@@ -88,12 +88,12 @@ int main (int argc, char *argv[]) {
 
         // Enhance the image using Gaussian blur and thresholding
         std::vector<cv::Mat> enhanced(3);
-        cv::GaussianBlur(channel[0], enhanced[0], cv::Size(11,11), 0, 0);
+        cv::GaussianBlur(channel[0], enhanced[0], cv::Size(5,5), 0, 0);
         cv::threshold(enhanced[0], enhanced[0], 218, 255, cv::THRESH_BINARY);
-        cv::GaussianBlur(channel[1], enhanced[1], cv::Size(11,11), 0, 0);
-        cv::threshold(enhanced[1], enhanced[1], 25, 255, cv::THRESH_BINARY);
-        cv::GaussianBlur(channel[2], enhanced[2], cv::Size(5,5), 0, 0);
-        cv::threshold(enhanced[2], enhanced[2], 0, 255, cv::THRESH_BINARY + cv::THRESH_OTSU);
+        cv::GaussianBlur(channel[1], enhanced[1], cv::Size(25,25), 0, 0);
+        cv::threshold(enhanced[1], enhanced[1], 208, 255, cv::THRESH_BINARY);
+        cv::GaussianBlur(channel[2], enhanced[2], cv::Size(25,25), 0, 0);
+        cv::threshold(enhanced[2], enhanced[2], 208, 255, cv::THRESH_BINARY);
 
         out_blue_filename.insert(out_blue_filename.find_first_of("."), "_enhanced", 9);
         cv::imwrite(out_blue_filename.c_str(), enhanced[0]);
