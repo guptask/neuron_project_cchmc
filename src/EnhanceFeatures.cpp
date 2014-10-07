@@ -14,7 +14,7 @@ void EnhanceFeatures::apply (std::string in_file, std::string out_file) {
 
     // Apply Gaussian blur and Otsu threshold
     GaussianBlur (src, dst, Size(5,5), 0, 0);
-    threshold (src, dst, 200, 255, THRESH_BINARY+THRESH_OTSU+THRESH_TRUNC);
+    threshold (src, dst, 200, 255, THRESH_BINARY+THRESH_OTSU);
 
     imwrite (out_file.c_str(), dst);
 }

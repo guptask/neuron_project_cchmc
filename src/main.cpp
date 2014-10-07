@@ -46,8 +46,8 @@ int main (int argc, char *argv[]) {
     std::unique_ptr<ColorChannelSeparator> col_ch_separator = 
             std::unique_ptr<ColorChannelSeparator>(new ColorChannelSeparator(false));
 
-    // Create the histogram equalizer
-    std::unique_ptr<EnhanceFeatures> equalize_hist = 
+    // Create the feature enhancer
+    std::unique_ptr<EnhanceFeatures> enhance_features = 
             std::unique_ptr<EnhanceFeatures>(new EnhanceFeatures());
 
     // Create the watershed segmentor
@@ -119,18 +119,18 @@ int main (int argc, char *argv[]) {
         col_ch_separator->apply (in, out_blue, false, false, true);
         TIFFWriteDirectory(out_blue);
 
-        // Equalize histogram
+        // Enhance features
         red_filename = out_red_filename;
-        out_red_filename.insert (out_red_filename.find_first_of("."), "_equalize", 9);
-        equalize_hist->apply (red_filename, out_red_filename);
+        out_red_filename.insert (out_red_filename.find_first_of("."), "_enhance", 8);
+        enhance_features->apply (red_filename, out_red_filename);
 
         green_filename = out_green_filename;
-        out_green_filename.insert (out_green_filename.find_first_of("."), "_equalize", 9);
-        equalize_hist->apply (green_filename, out_green_filename);
+        out_green_filename.insert (out_green_filename.find_first_of("."), "_enhance", 8);
+        enhance_features->apply (green_filename, out_green_filename);
 
         blue_filename = out_blue_filename;
-        out_blue_filename.insert (out_blue_filename.find_first_of("."), "_equalize", 9);
-        equalize_hist->apply (blue_filename, out_blue_filename);
+        out_blue_filename.insert (out_blue_filename.find_first_of("."), "_enhance", 8);
+        enhance_features->apply (blue_filename, out_blue_filename);
 
         // Apply watershed segmentation
         red_filename = out_red_filename;
