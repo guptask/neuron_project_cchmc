@@ -81,20 +81,25 @@ int main (int argc, char *argv[]) {
         cv::imwrite(out_green_filename.c_str(), channel[1]);
         cv::imwrite(out_red_filename.c_str(), channel[2]);
 
-        // Enhance the image using Gaussian blur and Otsu's bimodal thresholding
-        std::vector<cv::Mat> enhanced(3);
-        cv::GaussianBlur (channel[0], enhanced[0], cv::Size(5,5), 0, 0);
-        cv::threshold (enhanced[0], enhanced[0], 0, 255, cv::THRESH_BINARY + cv::THRESH_OTSU);
-        cv::GaussianBlur (channel[1], enhanced[1], cv::Size(5,5), 0, 0);
-        cv::threshold (enhanced[1], enhanced[1], 0, 255, cv::THRESH_BINARY + cv::THRESH_OTSU);
-        cv::GaussianBlur (channel[2], enhanced[2], cv::Size(5,5), 0, 0);
-        cv::threshold (enhanced[2], enhanced[2], 0, 255, cv::THRESH_BINARY + cv::THRESH_OTSU);
+        // Equalize the histogram
+        equalizeHist(channel[0], channel[0]);
+        equalizeHist(channel[1], channel[1]);
+        equalizeHist(channel[2], channel[2]);
 
-        out_blue_filename.insert (out_blue_filename.find_first_of("."), "_enhanced", 9);
+        // Enhance the image using Gaussian blur and thresholding
+        std::vector<cv::Mat> enhanced(3);
+        cv::GaussianBlur(channel[0], enhanced[0], cv::Size(5,5), 0, 0);
+        cv::threshold(enhanced[0], enhanced[0], 0, 255, cv::THRESH_BINARY + cv::THRESH_OTSU);
+        cv::GaussianBlur(channel[1], enhanced[1], cv::Size(11,11), 0, 0);
+        cv::threshold(enhanced[1], enhanced[1], 25, 255, cv::THRESH_BINARY);
+        cv::GaussianBlur(channel[2], enhanced[2], cv::Size(5,5), 0, 0);
+        cv::threshold(enhanced[2], enhanced[2], 0, 255, cv::THRESH_BINARY + cv::THRESH_OTSU);
+
+        out_blue_filename.insert(out_blue_filename.find_first_of("."), "_enhanced", 9);
         cv::imwrite(out_blue_filename.c_str(), enhanced[0]);
-        out_green_filename.insert (out_green_filename.find_first_of("."), "_enhanced", 9);
+        out_green_filename.insert(out_green_filename.find_first_of("."), "_enhanced", 9);
         cv::imwrite(out_green_filename.c_str(), enhanced[1]);
-        out_red_filename.insert (out_red_filename.find_first_of("."), "_enhanced", 9);
+        out_red_filename.insert(out_red_filename.find_first_of("."), "_enhanced", 9);
         cv::imwrite(out_red_filename.c_str(), enhanced[2]);
 
         // Moments calculation
@@ -103,11 +108,11 @@ int main (int argc, char *argv[]) {
         moments->apply(enhanced[1], &result[1], 0);
         moments->apply(enhanced[2], &result[2], 0);
 
-        out_blue_filename.insert (out_blue_filename.find_first_of("."), "_moment", 7);
+        out_blue_filename.insert(out_blue_filename.find_first_of("."), "_moment", 7);
         cv::imwrite(out_blue_filename.c_str(), result[0]);
-        out_green_filename.insert (out_green_filename.find_first_of("."), "_moment", 7);
+        out_green_filename.insert(out_green_filename.find_first_of("."), "_moment", 7);
         cv::imwrite(out_green_filename.c_str(), result[1]);
-        out_red_filename.insert (out_red_filename.find_first_of("."), "_moment", 7);
+        out_red_filename.insert(out_red_filename.find_first_of("."), "_moment", 7);
         cv::imwrite(out_red_filename.c_str(), result[2]);
     }
     return 0;
