@@ -7,7 +7,7 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/imgcodecs.hpp"
 
-//#include "Moments.hpp"
+#include "Moments.hpp"
 
 int main (int argc, char *argv[]) {
 
@@ -43,7 +43,7 @@ int main (int argc, char *argv[]) {
     }
 
     // Create the moments
-    //std::unique_ptr<Moments> moments = std::unique_ptr<Moments>(new Moments());
+    std::unique_ptr<Moments> moments = std::unique_ptr<Moments>(new Moments());
 
     for (uint8_t z_index = 1; z_index <= z_count; z_index++) {
 
@@ -74,17 +74,41 @@ int main (int argc, char *argv[]) {
             return 0;
         }
 
-        std::vector<cv::Mat> channels(3);
-        cv::split(img, channels);
+        std::vector<cv::Mat> channel(3);
+        cv::split(img, channel);
 
-        // Enhance features
-        //moments->apply(bgr[0], out_blue_filename);
-        //moments->apply(bgr[1], out_green_filename);
-        //moments->apply(bgr[2], out_red_filename);
-    
-        cv::imwrite(out_blue_filename.c_str(), channels[0]);
-        cv::imwrite(out_green_filename.c_str(), channels[1]);
-        cv::imwrite(out_red_filename.c_str(), channels[2]);
+        cv::imwrite(out_blue_filename.c_str(), channel[0]);
+        cv::imwrite(out_green_filename.c_str(), channel[1]);
+        cv::imwrite(out_red_filename.c_str(), channel[2]);
+
+        // Enhance the image using Gaussian blur and Otsu's bimodal thresholding
+        std::vector<cv::Mat> enhanced(3);
+        cv::GaussianBlur (channel[0], enhanced[0], cv::Size(5,5), 0, 0);
+        cv::threshold (enhanced[0], enhanced[0], 0, 255, cv::THRESH_BINARY + cv::THRESH_OTSU);
+        cv::GaussianBlur (channel[1], enhanced[1], cv::Size(5,5), 0, 0);
+        cv::threshold (enhanced[1], enhanced[1], 0, 255, cv::THRESH_BINARY + cv::THRESH_OTSU);
+        cv::GaussianBlur (channel[2], enhanced[2], cv::Size(5,5), 0, 0);
+        cv::threshold (enhanced[2], enhanced[2], 0, 255, cv::THRESH_BINARY + cv::THRESH_OTSU);
+
+        out_blue_filename.insert (out_blue_filename.find_first_of("."), "_enhanced", 9);
+        cv::imwrite(out_blue_filename.c_str(), enhanced[0]);
+        out_green_filename.insert (out_green_filename.find_first_of("."), "_enhanced", 9);
+        cv::imwrite(out_green_filename.c_str(), enhanced[1]);
+        out_red_filename.insert (out_red_filename.find_first_of("."), "_enhanced", 9);
+        cv::imwrite(out_red_filename.c_str(), enhanced[2]);
+
+        // Moments calculation
+        std::vector<cv::Mat> result(3);
+        moments->apply(enhanced[0], &result[0], 0);
+        moments->apply(enhanced[1], &result[1], 0);
+        moments->apply(enhanced[2], &result[2], 0);
+
+        out_blue_filename.insert (out_blue_filename.find_first_of("."), "_moment", 7);
+        cv::imwrite(out_blue_filename.c_str(), result[0]);
+        out_green_filename.insert (out_green_filename.find_first_of("."), "_moment", 7);
+        cv::imwrite(out_green_filename.c_str(), result[1]);
+        out_red_filename.insert (out_red_filename.find_first_of("."), "_moment", 7);
+        cv::imwrite(out_red_filename.c_str(), result[2]);
     }
     return 0;
 }
