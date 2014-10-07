@@ -1,13 +1,13 @@
+#include <iostream>
 #include <unistd.h>
 #include <memory>
 #include <dirent.h>
-#include <string.h>
-#include <sstream>
 #include <sys/stat.h>
-#include "ColorChannelSeparator.hpp"
-#include "EnhanceFeatures.hpp"
-#include "WatershedSegmentation.hpp"
-#include "CannyDetector.hpp"
+
+#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/imgcodecs.hpp"
+
+//#include "Moments.hpp"
 
 int main (int argc, char *argv[]) {
 
@@ -42,28 +42,13 @@ int main (int argc, char *argv[]) {
         mkdir(out_directory.c_str(), 0700);
     }
 
-    // Create the color channel separator
-    std::unique_ptr<ColorChannelSeparator> col_ch_separator = 
-            std::unique_ptr<ColorChannelSeparator>(new ColorChannelSeparator(false));
-
-    // Create the feature enhancer
-    std::unique_ptr<EnhanceFeatures> enhance_features = 
-            std::unique_ptr<EnhanceFeatures>(new EnhanceFeatures());
-
-    // Create the watershed segmentor
-    std::unique_ptr<WatershedSegmentation> watershed_segment = 
-            std::unique_ptr<WatershedSegmentation>(new WatershedSegmentation());
-
-    // Create the canny edge detector
-    std::unique_ptr<CannyDetector> canny_detect = 
-            std::unique_ptr<CannyDetector>(new CannyDetector());
+    // Create the moments
+    //std::unique_ptr<Moments> moments = std::unique_ptr<Moments>(new Moments());
 
     for (uint8_t z_index = 1; z_index <= z_count; z_index++) {
 
         // Create the input filename and rgb stream output filenames
-        std::string in_filename, 
-                    out_red_filename, out_green_filename, out_blue_filename, 
-                    red_filename, green_filename, blue_filename;
+        std::string in_filename, out_red_filename, out_green_filename, out_blue_filename;
 
         if (z_index < 10) {
             in_filename  = str + token + "_z0" + std::to_string(z_index) + "c1+2+3.tif";
@@ -82,86 +67,24 @@ int main (int argc, char *argv[]) {
             return 0;
         }
 
-        // Create the in and out tiff file streams
-        TIFFErrorHandler error_handler = TIFFSetWarningHandler(NULL);
-        TIFF *in = TIFFOpen(in_filename.c_str(), "r");
-        if (!in) {
-            TIFFError(TIFFFileName(in), "Could not open input image");
+        // Extract the bgr streams for each input image
+        cv::Mat img = cv::imread(in_filename.c_str());
+        if (img.empty()) {
+            std::cerr << "Invalid input filename" << std::endl;
             return 0;
         }
 
-        TIFF *out_red = TIFFOpen(out_red_filename.c_str(), "w");
-        if (!out_red) {
-            TIFFError(TIFFFileName(out_red), "Could not open red output image");
-            return 0;
-        }
-
-        TIFF *out_green = TIFFOpen(out_green_filename.c_str(), "w");
-        if (!out_green) {
-            TIFFError(TIFFFileName(out_green), "Could not open green output image");
-            return 0;
-        }
-
-        TIFF *out_blue = TIFFOpen(out_blue_filename.c_str(), "w");
-        if (!out_blue) {
-            TIFFError(TIFFFileName(out_blue), "Could not open blue output image");
-            return 0;
-        }
-        TIFFSetWarningHandler(error_handler);
-
-        // Extract the rgb streams for each input image
-        col_ch_separator->apply (in, out_red, true, false, false);
-        TIFFWriteDirectory(out_red);
-
-        col_ch_separator->apply (in, out_green, false, true, false);
-        TIFFWriteDirectory(out_green);
-
-        col_ch_separator->apply (in, out_blue, false, false, true);
-        TIFFWriteDirectory(out_blue);
+        std::vector<cv::Mat> channels(3);
+        cv::split(img, channels);
 
         // Enhance features
-        red_filename = out_red_filename;
-        out_red_filename.insert (out_red_filename.find_first_of("."), "_enhance", 8);
-        enhance_features->apply (red_filename, out_red_filename);
-
-        green_filename = out_green_filename;
-        out_green_filename.insert (out_green_filename.find_first_of("."), "_enhance", 8);
-        enhance_features->apply (green_filename, out_green_filename);
-
-        blue_filename = out_blue_filename;
-        out_blue_filename.insert (out_blue_filename.find_first_of("."), "_enhance", 8);
-        enhance_features->apply (blue_filename, out_blue_filename);
-
-        // Apply watershed segmentation
-        red_filename = out_red_filename;
-        out_red_filename.insert (out_red_filename.find_first_of("."), "_watershed", 10);
-        watershed_segment->apply (red_filename, out_red_filename);
-
-        green_filename = out_green_filename;
-        out_green_filename.insert (out_green_filename.find_first_of("."), "_watershed", 10);
-        watershed_segment->apply (green_filename, out_green_filename);
-
-        blue_filename = out_blue_filename;
-        out_blue_filename.insert (out_blue_filename.find_first_of("."), "_watershed", 10);
-        watershed_segment->apply (blue_filename, out_blue_filename);
-
-        // Apply Canny Edge detection
-        red_filename = out_red_filename;
-        out_red_filename.insert (out_red_filename.find_first_of("."), "_canny", 6);
-        canny_detect->apply (red_filename, out_red_filename);
-
-        green_filename = out_green_filename;
-        out_green_filename.insert (out_green_filename.find_first_of("."), "_canny", 6);
-        canny_detect->apply (green_filename, out_green_filename);
-
-        blue_filename = out_blue_filename;
-        out_blue_filename.insert (out_blue_filename.find_first_of("."), "_canny", 6);
-        canny_detect->apply (blue_filename, out_blue_filename);
-
-        TIFFClose(in);
-        TIFFClose(out_red);
-        TIFFClose(out_green);
-        TIFFClose(out_blue);
+        //moments->apply(bgr[0], out_blue_filename);
+        //moments->apply(bgr[1], out_green_filename);
+        //moments->apply(bgr[2], out_red_filename);
+    
+        cv::imwrite(out_blue_filename.c_str(), channels[0]);
+        cv::imwrite(out_green_filename.c_str(), channels[1]);
+        cv::imwrite(out_red_filename.c_str(), channels[2]);
     }
     return 0;
 }
