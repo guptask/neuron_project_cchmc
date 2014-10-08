@@ -1,16 +1,13 @@
 #include <iostream>
-#include <unistd.h>
-#include <memory>
 #include <dirent.h>
 #include <sys/stat.h>
-#include <vector>
 
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/imgcodecs.hpp"
 
 #define NUM_Z_LAYERS  3  // Merge a certain number of z layers
 
-
+/* Channel type */
 enum class ChannelType : unsigned char {
     BLUE = 0,
     GREEN,
@@ -53,7 +50,7 @@ bool enhanceImage(cv::Mat src, ChannelType channel_type, cv::Mat *dst) {
 }
 
 /* Find the contours in the image */
-void contourCalc(cv::Mat src, cv::Mat *dst) {
+void contourCalc(cv::Mat src, cv::Mat *dst, std::vector<std::vector<cv::Point>> *contour_data) {
 
     // Blur the image
     cv::Mat src_blur;
@@ -68,19 +65,7 @@ void contourCalc(cv::Mat src, cv::Mat *dst) {
 
     // Find contours
     cv::findContours(canny_output, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
-
-    // Get the moments
-    std::vector<cv::Moments> mu(contours.size());
-    for (size_t i = 0; i < contours.size(); i++) {
-        mu[i] = cv::moments(contours[i], false);
-    }
-
-    // Get the mass centers:
-    std::vector<cv::Point2f> mc(contours.size());
-    for (size_t i = 0; i < contours.size(); i++) {
-        mc[i] = cv::Point2f(static_cast<float>(mu[i].m10/mu[i].m00), 
-                            static_cast<float>(mu[i].m01/mu[i].m00));
-    }
+    *contour_data = contours;
 
     // Draw contours
     cv::Mat drawing = cv::Mat::zeros(canny_output.size(), CV_8UC3);
@@ -88,18 +73,13 @@ void contourCalc(cv::Mat src, cv::Mat *dst) {
     for (size_t i = 0; i< contours.size(); i++) {
         cv::Scalar color = cv::Scalar(rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255));
         cv::drawContours(drawing, contours, (int)i, color, 2, 8, hierarchy, 0, cv::Point());
-        //cv::circle(drawing, mc[i], 4, color, -1, 8, 0);
     }
     *dst = drawing;
+}
 
-    // Calculate the area with the moments 00 and compare with the result of the OpenCV function
-    /*for( size_t i = 0; i< contours.size(); i++ ) {
-        printf(" * Contour[%d] - Area (M_00) = %.2f - Area OpenCV: %.2f - 
-            Length: %.2f \n", (int)i, mu[i].m00, contourArea(contours[i]), arcLength( contours[i], true ) );
-        Scalar color = Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
-        drawContours( drawing, contours, (int)i, color, 2, 8, hierarchy, 0, Point() );
-        circle( drawing, mc[i], 4, color, -1, 8, 0 );
-    }*/
+/* Classify Nuclei and Astrocytes */
+void classifyNucleiAndAstrocytes(std::vector<std::vector<cv::Point>> blue_contours, 
+                                    std::vector<std::vector<cv::Point>> green_contours) {
 }
 
 /* Process the images inside each directory */
@@ -174,6 +154,7 @@ bool processDir(std::string dir_name) {
 
             // Blue channel
             cv::Mat blue_merge, blue_enhanced, blue_contour;
+            std::vector<std::vector<cv::Point>> contours_blue;
             cv::merge(blue, blue_merge);
             std::string out_blue = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) + 
                                             "_blue_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
@@ -183,12 +164,13 @@ bool processDir(std::string dir_name) {
             }
             out_blue.insert(out_blue.find_first_of("."), "_enhanced", 9);
             cv::imwrite(out_blue.c_str(), blue_enhanced);
-            contourCalc(blue_enhanced, &blue_contour);
-            out_blue.insert(out_blue.find_first_of("."), "_contour", 8);
+            contourCalc(blue_enhanced, &blue_contour, &contours_blue);
+            out_blue.insert(out_blue.find_first_of("."), "_contours", 9);
             cv::imwrite(out_blue.c_str(), blue_contour);
 
             // Green channel
             cv::Mat green_merge, green_enhanced, green_contour;
+            std::vector<std::vector<cv::Point>> contours_green;
             cv::merge(green, green_merge);
             std::string out_green = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) + 
                                             "_green_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
@@ -198,12 +180,13 @@ bool processDir(std::string dir_name) {
             }
             out_green.insert(out_green.find_first_of("."), "_enhanced", 9);
             cv::imwrite(out_green.c_str(), green_enhanced);
-            contourCalc(green_enhanced, &green_contour);
-            out_green.insert(out_green.find_first_of("."), "_contour", 8);
+            contourCalc(green_enhanced, &green_contour, &contours_green);
+            out_green.insert(out_green.find_first_of("."), "_contours", 9);
             cv::imwrite(out_green.c_str(), green_contour);
 
             // Red channel
             cv::Mat red_merge, red_enhanced, red_contour;
+            std::vector<std::vector<cv::Point>> contours_red;
             cv::merge(red, red_merge);
             std::string out_red = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) + 
                                                 "_red_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
@@ -213,9 +196,12 @@ bool processDir(std::string dir_name) {
             }
             out_red.insert(out_red.find_first_of("."), "_enhanced", 9);
             cv::imwrite(out_red.c_str(), red_enhanced);
-            contourCalc(red_enhanced, &red_contour);
-            out_red.insert(out_red.find_first_of("."), "_contour", 8);
+            contourCalc(red_enhanced, &red_contour, &contours_red);
+            out_red.insert(out_red.find_first_of("."), "_contours", 9);
             cv::imwrite(out_red.c_str(), red_contour);
+
+            // Classify nuclei and astrocytes
+            classifyNucleiAndAstrocytes(contours_blue, contours_green);
         }
     }
     return true;
