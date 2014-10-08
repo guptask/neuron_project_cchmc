@@ -88,7 +88,7 @@ void contourCalc(cv::Mat src, cv::Mat *dst) {
     for (size_t i = 0; i< contours.size(); i++) {
         cv::Scalar color = cv::Scalar(rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255));
         cv::drawContours(drawing, contours, (int)i, color, 2, 8, hierarchy, 0, cv::Point());
-        cv::circle(drawing, mc[i], 4, color, -1, 8, 0);
+        //cv::circle(drawing, mc[i], 4, color, -1, 8, 0);
     }
     *dst = drawing;
 
