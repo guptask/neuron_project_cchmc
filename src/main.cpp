@@ -108,11 +108,11 @@ int main (int argc, char *argv[]) {
         moments->apply(enhanced[1], &result[1], 0);
         moments->apply(enhanced[2], &result[2], 0);
 
-        out_blue_filename.insert(out_blue_filename.find_first_of("."), "_moment", 7);
+        out_blue_filename.insert(out_blue_filename.find_first_of("."), "_contour", 8);
         cv::imwrite(out_blue_filename.c_str(), result[0]);
-        out_green_filename.insert(out_green_filename.find_first_of("."), "_moment", 7);
+        out_green_filename.insert(out_green_filename.find_first_of("."), "_contour", 8);
         cv::imwrite(out_green_filename.c_str(), result[1]);
-        out_red_filename.insert(out_red_filename.find_first_of("."), "_moment", 7);
+        out_red_filename.insert(out_red_filename.find_first_of("."), "_contour", 8);
         cv::imwrite(out_red_filename.c_str(), result[2]);
     }
     return 0;
