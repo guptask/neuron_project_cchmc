@@ -77,8 +77,8 @@ void contourCalc(cv::Mat src, cv::Mat *dst, std::vector<std::vector<cv::Point>> 
     *dst = drawing;
 }
 
-void removeRedundantContours(std::vector<std::vector<cv::Point>> contours, 
-                             std::vector<std::vector<cv::Point>> *res_contours) {
+void removeRedundantBlueContours(std::vector<std::vector<cv::Point>> contours, 
+                                    std::vector<std::vector<cv::Point>> *res_contours) {
 
     std::vector<cv::Moments> mu(contours.size());
     std::vector<std::vector<cv::Point>> contours_poly(contours.size());
@@ -221,14 +221,17 @@ bool processDir(std::string dir_name) {
 
         // Create the input filename and rgb stream output filenames
         std::string in_filename;
-
-        if (z_index < 10) {
-            in_filename  = dir_name + token + "_z0" + std::to_string(z_index) + "c1+2+3.tif";
-        } else if (z_index < 100) {
+        if (z_count < 10) {
             in_filename  = dir_name + token + "_z" + std::to_string(z_index) + "c1+2+3.tif";
-        } else { // assuming number of z plane layers will never exceed 99
-            std::cerr << "Does not support more than 99 z layers curently" << std::endl;
-            return false;
+        } else {
+            if (z_index < 10) {
+                in_filename  = dir_name + token + "_z0" + std::to_string(z_index) + "c1+2+3.tif";
+            } else if (z_index < 100) {
+                in_filename  = dir_name + token + "_z" + std::to_string(z_index) + "c1+2+3.tif";
+            } else { // assuming number of z plane layers will never exceed 99
+                std::cerr << "Does not support more than 99 z layers curently" << std::endl;
+                return false;
+            }
         }
 
         // Extract the bgr streams for each input image
@@ -263,7 +266,7 @@ bool processDir(std::string dir_name) {
             contourCalc(blue_enhanced, &blue_contour, &contours_blue);
             out_blue.insert(out_blue.find_first_of("."), "_contours", 9);
             cv::imwrite(out_blue.c_str(), blue_contour);
-            removeRedundantContours(contours_blue, &contours_blue_ref);
+            removeRedundantBlueContours(contours_blue, &contours_blue_ref);
 
             // Green channel
             cv::Mat green_merge, green_enhanced, green_contour;
