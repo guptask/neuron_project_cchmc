@@ -181,6 +181,13 @@ void classifyNucleiAndAstrocytes(std::vector<std::vector<cv::Point>> blue_contou
     *result_contours = temp_contours;
 }
 
+/* Classify synapses */
+void classifySynapses(std::vector<std::vector<cv::Point>> red_contours, 
+                        std::vector<std::vector<cv::Point>> *result_contours) {
+
+    *result_contours = red_contours;
+}
+
 /* Process the images inside each directory */
 bool processDir(std::string dir_name) {
 
@@ -304,7 +311,10 @@ bool processDir(std::string dir_name) {
             cv::imwrite(out_red.c_str(), red_contour);
             removeRedundantContours(contours_red, 0, 10, &contours_red_ref);
 
-            // Classify nuclei and astrocytes
+
+            cv::RNG rng(12345);
+
+            /** Classify nuclei and astrocytes **/
             cv::Mat blue_green_intersection;
             bitwise_and(blue_enhanced, green_enhanced, blue_green_intersection);
 
@@ -312,18 +322,28 @@ bool processDir(std::string dir_name) {
             classifyNucleiAndAstrocytes(contours_blue_ref, blue_green_intersection, &temp_blue_contours);
 
             // Draw contours
-            cv::Mat drawing = cv::Mat::zeros(blue_contour.size(), CV_32S);
-            cv::RNG rng(12345);
+            cv::Mat drawing_blue = cv::Mat::zeros(blue_contour.size(), CV_32S);
             for (size_t i = 0; i< temp_blue_contours.size(); i++) {
                 cv::Scalar color = cv::Scalar(rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255));
-                cv::drawContours(drawing, temp_blue_contours, (int)i, color, 2, 8, 
+                cv::drawContours(drawing_blue, temp_blue_contours, (int)i, color, 2, 8, 
                                             std::vector<cv::Vec4i>(), 0, cv::Point());
             }
             out_blue.insert(out_blue.find_first_of("."), "_classification", 15);
-            cv::imwrite(out_blue.c_str(), drawing);
+            cv::imwrite(out_blue.c_str(), drawing_blue);
 
-            // Count and calculate area of synapses
+            /** Classify synapses **/
+            std::vector<std::vector<cv::Point>> temp_red_contours;
+            classifySynapses(contours_red_ref, &temp_red_contours);
 
+            // Draw contours
+            cv::Mat drawing_red = cv::Mat::zeros(red_contour.size(), CV_32S);
+            for (size_t i = 0; i< temp_red_contours.size(); i++) {
+                cv::Scalar color = cv::Scalar(rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255));
+                cv::drawContours(drawing_red, temp_red_contours, (int)i, color, 2, 8, 
+                                            std::vector<cv::Vec4i>(), 0, cv::Point());
+            }
+            out_red.insert(out_red.find_first_of("."), "_classification", 15);
+            cv::imwrite(out_red.c_str(), drawing_red);
         }
     }
     return true;
