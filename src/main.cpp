@@ -77,9 +77,78 @@ void contourCalc(cv::Mat src, cv::Mat *dst, std::vector<std::vector<cv::Point>> 
     *dst = drawing;
 }
 
+void removeRedundantContours(std::vector<std::vector<cv::Point>> contours, 
+                             std::vector<std::vector<cv::Point>> *res_contours) {
+
+    std::vector<cv::Moments> mu(contours.size());
+    std::vector<std::vector<cv::Point>> contours_poly(contours.size());
+    std::vector<cv::Point2f> mc(contours.size());
+
+    for (size_t i = 0; i < contours.size(); i++) {
+        approxPolyDP(cv::Mat(contours[i]), contours_poly[i], 3, true);
+        mu[i] = moments(contours_poly[i], false);
+        mc[i] = cv::Point2f(static_cast<float>(mu[i].m10/mu[i].m00), 
+                                static_cast<float>(mu[i].m01/mu[i].m00));
+    }
+
+    std::vector<std::vector<cv::Point>> temp_contours;
+    size_t k = 0;
+    for (size_t i = 0; i < contours_poly.size();) {
+        if (mu[i].m00 >= 12) {
+            temp_contours.push_back(contours_poly[i]);
+            size_t j = i+1;
+            for (; j < contours_poly.size(); j++) {
+                if (cv::norm(mc[i]-mc[j]) <= 80) {
+                    if (mu[j].m00 >= 12) {
+                        temp_contours[k].insert(temp_contours[k].end(), 
+                                contours_poly[j].begin(), contours_poly[j].end());
+                    }
+                } else {
+                    break;
+                }
+            }
+            i = j;
+            k++;
+        } else {
+            i++;
+        }
+    }
+
+    std::vector<std::vector<cv::Point>> temp_contours_poly(temp_contours.size());
+    std::vector<cv::Moments> temp_mu(temp_contours.size());
+    std::vector<cv::Point2f> temp_mc(temp_contours.size());
+    for (size_t i = 0; i < temp_contours.size(); i++) {
+        temp_mu[i] = moments(temp_contours[i], false);
+        temp_mc[i] = cv::Point2f(static_cast<float>(temp_mu[i].m10/temp_mu[i].m00), 
+                                static_cast<float>(temp_mu[i].m01/temp_mu[i].m00));
+        approxPolyDP(cv::Mat(temp_contours[i]), temp_contours_poly[i], 3, true);
+    }
+    *res_contours = temp_contours_poly;
+}
+
 /* Classify Nuclei and Astrocytes */
 void classifyNucleiAndAstrocytes(std::vector<std::vector<cv::Point>> blue_contours, 
-                                    std::vector<std::vector<cv::Point>> green_contours) {
+                                    std::vector<std::vector<cv::Point>> green_contours,
+                                    std::vector<std::vector<cv::Point>> *result_contours) {
+
+    // Eliminate small contours via contour area calculation
+    for (size_t i = 0; i < blue_contours.size(); i++) {
+        if (arcLength(blue_contours[i], true) >= 250) {
+            result_contours->push_back(blue_contours[i]);
+        }
+    }
+    std::cout << result_contours->size() << std::endl;
+
+    // Find the centers of each blue contour
+
+    // Calculate the aspect ratio of each blue contour, 
+    // categorize the astrocytes - whose aspect ratio is not close to 1.
+
+    // Create the masks for each blue contour
+
+    // Create the masks for each green contour
+
+    // If center lies inside green contour, then check for overlap
 }
 
 /* Process the images inside each directory */
@@ -154,7 +223,7 @@ bool processDir(std::string dir_name) {
 
             // Blue channel
             cv::Mat blue_merge, blue_enhanced, blue_contour;
-            std::vector<std::vector<cv::Point>> contours_blue;
+            std::vector<std::vector<cv::Point>> contours_blue, contours_blue_ref;
             cv::merge(blue, blue_merge);
             std::string out_blue = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) + 
                                             "_blue_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
@@ -167,6 +236,7 @@ bool processDir(std::string dir_name) {
             contourCalc(blue_enhanced, &blue_contour, &contours_blue);
             out_blue.insert(out_blue.find_first_of("."), "_contours", 9);
             cv::imwrite(out_blue.c_str(), blue_contour);
+            removeRedundantContours(contours_blue, &contours_blue_ref);
 
             // Green channel
             cv::Mat green_merge, green_enhanced, green_contour;
@@ -201,7 +271,18 @@ bool processDir(std::string dir_name) {
             cv::imwrite(out_red.c_str(), red_contour);
 
             // Classify nuclei and astrocytes
-            classifyNucleiAndAstrocytes(contours_blue, contours_green);
+            std::vector<std::vector<cv::Point>> temp_contours;
+            classifyNucleiAndAstrocytes(contours_blue_ref, contours_green, &temp_contours);
+
+            // Draw contours
+            //for (size_t i = 0; i< temp_contours.size(); i++) {
+            //    cv::Mat drawing = cv::Mat::zeros(blue_contour.size(), CV_32S);
+            //    cv::RNG rng(12345);
+            //    cv::Scalar color = cv::Scalar(rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255));
+            //    cv::drawContours(drawing, temp_contours, (int)i, color/*cv::Scalar::all(i+1)*/, 2, 8, std::vector<cv::Vec4i>(), 0, cv::Point());
+            //    out_blue = out_directory + "x" + std::to_string(i) + ".tif";
+            //    cv::imwrite(out_blue.c_str(), drawing);
+            //}
         }
     }
     return true;
