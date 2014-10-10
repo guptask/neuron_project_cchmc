@@ -128,22 +128,34 @@ void removeRedundantContours(std::vector<std::vector<cv::Point>> contours,
 
 /* Classify Nuclei and Astrocytes */
 void classifyNucleiAndAstrocytes(std::vector<std::vector<cv::Point>> blue_contours, 
-                                    std::vector<std::vector<cv::Point>> green_contours,
+                                    cv::Mat blue_green_intersection,
                                     std::vector<std::vector<cv::Point>> *result_contours) {
+
+    std::vector<std::vector<cv::Point>> temp_contours;
 
     // Eliminate small contours via contour area calculation
     for (size_t i = 0; i < blue_contours.size(); i++) {
         if (arcLength(blue_contours[i], true) >= 250) {
-            result_contours->push_back(blue_contours[i]);
+            temp_contours.push_back(blue_contours[i]);
         }
     }
-    std::cout << result_contours->size() << std::endl;
-
-    // Find the centers of each blue contour
+    unsigned int total_cells = temp_contours.size();
 
     // Calculate the aspect ratio of each blue contour, 
     // categorize the astrocytes - whose aspect ratio is not close to 1.
-
+    for (auto it = temp_contours.begin(); it != temp_contours.end();) {
+        cv::RotatedRect ellipse = fitEllipse(cv::Mat(*it));
+        float aspect_ratio = float(ellipse.size.width)/ellipse.size.height;
+        if (aspect_ratio <= 0.6) {
+            it = temp_contours.erase(it);
+        } else {
+            it++;
+        }
+    }
+    unsigned int cells_left = temp_contours.size();
+    std:: cout << "total cells = " << total_cells << " , cells left = " << cells_left << std::endl;
+    *result_contours = temp_contours;
+    
     // Create the masks for each blue contour
 
     // Create the masks for each green contour
@@ -271,18 +283,22 @@ bool processDir(std::string dir_name) {
             cv::imwrite(out_red.c_str(), red_contour);
 
             // Classify nuclei and astrocytes
+            cv::Mat blue_green_intersection;
+            bitwise_and(blue_enhanced, green_enhanced, blue_green_intersection);
+
             std::vector<std::vector<cv::Point>> temp_contours;
-            classifyNucleiAndAstrocytes(contours_blue_ref, contours_green, &temp_contours);
+            classifyNucleiAndAstrocytes(contours_blue_ref, blue_green_intersection, &temp_contours);
 
             // Draw contours
-            //for (size_t i = 0; i< temp_contours.size(); i++) {
-            //    cv::Mat drawing = cv::Mat::zeros(blue_contour.size(), CV_32S);
-            //    cv::RNG rng(12345);
-            //    cv::Scalar color = cv::Scalar(rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255));
-            //    cv::drawContours(drawing, temp_contours, (int)i, color/*cv::Scalar::all(i+1)*/, 2, 8, std::vector<cv::Vec4i>(), 0, cv::Point());
-            //    out_blue = out_directory + "x" + std::to_string(i) + ".tif";
-            //    cv::imwrite(out_blue.c_str(), drawing);
-            //}
+            cv::Mat drawing = cv::Mat::zeros(blue_contour.size(), CV_32S);
+            cv::RNG rng(12345);
+            for (size_t i = 0; i< temp_contours.size(); i++) {
+                cv::Scalar color = cv::Scalar(rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255));
+                cv::drawContours(drawing, temp_contours, (int)i, color, 2, 8, 
+                                            std::vector<cv::Vec4i>(), 0, cv::Point());
+            }
+            out_blue.insert(out_blue.find_first_of("."), "_classification", 15);
+            cv::imwrite(out_blue.c_str(), drawing);
         }
     }
     return true;
