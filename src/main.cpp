@@ -146,21 +146,36 @@ void classifyNucleiAndAstrocytes(std::vector<std::vector<cv::Point>> blue_contou
     for (auto it = temp_contours.begin(); it != temp_contours.end();) {
         cv::RotatedRect ellipse = fitEllipse(cv::Mat(*it));
         float aspect_ratio = float(ellipse.size.width)/ellipse.size.height;
-        if (aspect_ratio <= 0.6) {
+        if (aspect_ratio <= 0.5) {
             it = temp_contours.erase(it);
         } else {
             it++;
         }
     }
     unsigned int cells_left = temp_contours.size();
-    std:: cout << "total cells = " << total_cells << " , cells left = " << cells_left << std::endl;
-    *result_contours = temp_contours;
     
-    // Create the masks for each blue contour
+    // Find the coverage ratio for each contour on the blue-green intersection mask
+    for (auto it = temp_contours.begin(); it != temp_contours.end();) {
+        std::vector<std::vector<cv::Point>> specific_contour (1, *it);
+        cv::Mat drawing = cv::Mat::zeros(blue_green_intersection.size(), CV_8U);
+        cv::drawContours(drawing, specific_contour, -1, cv::Scalar::all(255), -1, 8, 
+                                            std::vector<cv::Vec4i>(), 0, cv::Point());
+        int contour_count_before = countNonZero(drawing);
+        cv::Mat contour_intersection;
+        bitwise_and(drawing, blue_green_intersection, contour_intersection);
+        int contour_count_after = countNonZero(contour_intersection);
 
-    // Create the masks for each green contour
-
-    // If center lies inside green contour, then check for overlap
+        float coverage_ratio = ((float)contour_count_after)/contour_count_before;
+        if (coverage_ratio < 0.35) {
+            it = temp_contours.erase(it);
+        } else {
+            it++;
+        }
+    }
+    std:: cout << "cell count = " << total_cells 
+                << " , cell count after aspect ratio elimination = " << cells_left 
+                << " , nuclei count = " << temp_contours.size() << std::endl;
+    *result_contours = temp_contours;
 }
 
 /* Process the images inside each directory */
