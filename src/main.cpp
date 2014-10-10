@@ -77,8 +77,11 @@ void contourCalc(cv::Mat src, cv::Mat *dst, std::vector<std::vector<cv::Point>> 
     *dst = drawing;
 }
 
-void removeRedundantBlueContours(std::vector<std::vector<cv::Point>> contours, 
-                                    std::vector<std::vector<cv::Point>> *res_contours) {
+/* Remove redundant contours */
+void removeRedundantContours(std::vector<std::vector<cv::Point>> contours, 
+                                unsigned int contour_area_lower_limit, 
+                                unsigned int norm_upper_limit, 
+                                std::vector<std::vector<cv::Point>> *res_contours) {
 
     std::vector<cv::Moments> mu(contours.size());
     std::vector<std::vector<cv::Point>> contours_poly(contours.size());
@@ -94,12 +97,12 @@ void removeRedundantBlueContours(std::vector<std::vector<cv::Point>> contours,
     std::vector<std::vector<cv::Point>> temp_contours;
     size_t k = 0;
     for (size_t i = 0; i < contours_poly.size();) {
-        if (mu[i].m00 >= 12) {
+        if (mu[i].m00 >= contour_area_lower_limit) {
             temp_contours.push_back(contours_poly[i]);
             size_t j = i+1;
             for (; j < contours_poly.size(); j++) {
-                if (cv::norm(mc[i]-mc[j]) <= 80) {
-                    if (mu[j].m00 >= 12) {
+                if (cv::norm(mc[i]-mc[j]) <= norm_upper_limit) {
+                    if (mu[j].m00 >= contour_area_lower_limit) {
                         temp_contours[k].insert(temp_contours[k].end(), 
                                 contours_poly[j].begin(), contours_poly[j].end());
                     }
@@ -266,7 +269,7 @@ bool processDir(std::string dir_name) {
             contourCalc(blue_enhanced, &blue_contour, &contours_blue);
             out_blue.insert(out_blue.find_first_of("."), "_contours", 9);
             cv::imwrite(out_blue.c_str(), blue_contour);
-            removeRedundantBlueContours(contours_blue, &contours_blue_ref);
+            removeRedundantContours(contours_blue, 12, 80, &contours_blue_ref);
 
             // Green channel
             cv::Mat green_merge, green_enhanced, green_contour;
@@ -286,7 +289,7 @@ bool processDir(std::string dir_name) {
 
             // Red channel
             cv::Mat red_merge, red_enhanced, red_contour;
-            std::vector<std::vector<cv::Point>> contours_red;
+            std::vector<std::vector<cv::Point>> contours_red, contours_red_ref;
             cv::merge(red, red_merge);
             std::string out_red = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) + 
                                                 "_red_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
@@ -299,24 +302,28 @@ bool processDir(std::string dir_name) {
             contourCalc(red_enhanced, &red_contour, &contours_red);
             out_red.insert(out_red.find_first_of("."), "_contours", 9);
             cv::imwrite(out_red.c_str(), red_contour);
+            removeRedundantContours(contours_red, 0, 10, &contours_red_ref);
 
             // Classify nuclei and astrocytes
             cv::Mat blue_green_intersection;
             bitwise_and(blue_enhanced, green_enhanced, blue_green_intersection);
 
-            std::vector<std::vector<cv::Point>> temp_contours;
-            classifyNucleiAndAstrocytes(contours_blue_ref, blue_green_intersection, &temp_contours);
+            std::vector<std::vector<cv::Point>> temp_blue_contours;
+            classifyNucleiAndAstrocytes(contours_blue_ref, blue_green_intersection, &temp_blue_contours);
 
             // Draw contours
             cv::Mat drawing = cv::Mat::zeros(blue_contour.size(), CV_32S);
             cv::RNG rng(12345);
-            for (size_t i = 0; i< temp_contours.size(); i++) {
+            for (size_t i = 0; i< temp_blue_contours.size(); i++) {
                 cv::Scalar color = cv::Scalar(rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255));
-                cv::drawContours(drawing, temp_contours, (int)i, color, 2, 8, 
+                cv::drawContours(drawing, temp_blue_contours, (int)i, color, 2, 8, 
                                             std::vector<cv::Vec4i>(), 0, cv::Point());
             }
             out_blue.insert(out_blue.find_first_of("."), "_classification", 15);
             cv::imwrite(out_blue.c_str(), drawing);
+
+            // Count and calculate area of synapses
+
         }
     }
     return true;
