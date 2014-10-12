@@ -11,7 +11,8 @@
 enum class ChannelType : unsigned char {
     BLUE = 0,
     GREEN,
-    RED
+    RED_LOW,
+    RED_HIGH
 };
 
 /* Enhance the image */
@@ -35,9 +36,13 @@ bool enhanceImage(cv::Mat src, ChannelType channel_type, cv::Mat *dst) {
             cv::threshold(enhanced, enhanced, 208, 255, cv::THRESH_BINARY);
         } break;
 
-        case ChannelType::RED: {
+        case ChannelType::RED_LOW: {
             cv::GaussianBlur(src_equalized, enhanced, cv::Size(25,25), 0, 0);
             cv::threshold(enhanced, enhanced, 208, 255, cv::THRESH_BINARY);
+        } break;
+
+        case ChannelType::RED_HIGH: {
+
         } break;
 
         default: {
@@ -146,7 +151,7 @@ void classifyNucleiAndAstrocytes(std::vector<std::vector<cv::Point>> blue_contou
 
     // Calculate the aspect ratio of each blue contour, 
     // categorize the astrocytes - whose aspect ratio is not close to 1.
-    for (auto it = temp_contours.begin(); it != temp_contours.end();) {
+    /*for (auto it = temp_contours.begin(); it != temp_contours.end();) {
         cv::RotatedRect ellipse = fitEllipse(cv::Mat(*it));
         float aspect_ratio = float(ellipse.size.width)/ellipse.size.height;
         if (aspect_ratio <= 0.5) {
@@ -154,9 +159,8 @@ void classifyNucleiAndAstrocytes(std::vector<std::vector<cv::Point>> blue_contou
         } else {
             it++;
         }
-    }
-    unsigned int cells_left = temp_contours.size();
-    
+    }*/
+
     // Find the coverage ratio for each contour on the blue-green intersection mask
     for (auto it = temp_contours.begin(); it != temp_contours.end();) {
         std::vector<std::vector<cv::Point>> specific_contour (1, *it);
@@ -176,14 +180,37 @@ void classifyNucleiAndAstrocytes(std::vector<std::vector<cv::Point>> blue_contou
         }
     }
     std:: cout << "cell count = " << total_cells 
-                << " , cell count after aspect ratio elimination = " << cells_left 
-                << " , nuclei count = " << temp_contours.size() << std::endl;
+                << " , nuclei count = " << temp_contours.size() 
+                << std::endl;
     *result_contours = temp_contours;
 }
 
 /* Classify synapses */
 void classifySynapses(std::vector<std::vector<cv::Point>> red_contours, 
                         std::vector<std::vector<cv::Point>> *result_contours) {
+
+    std::vector<cv::Moments> mu(red_contours.size());
+    std::vector<cv::Point2f> mc(red_contours.size());
+
+    std::vector<unsigned int> count(10);
+    size_t i = 0;
+    for (auto it = red_contours.begin(); it !=red_contours.end();) {
+        mu[i] = moments(*it, false);
+        mc[i] = cv::Point2f(static_cast<float>(mu[i].m10/mu[i].m00), 
+                                static_cast<float>(mu[i].m01/mu[i].m00));
+        if (mu[i].m00) {
+            auto round_area = (unsigned int)mu[i].m00;
+            count[round_area/25]++;
+            it++;
+        } else {
+            it = red_contours.erase(it);
+        }
+        i++;
+    }
+
+    for (unsigned int i = 0; i < count.size(); i++) {
+        std::cout << "<" << (i+1)*25 << " count = " << count[i] << std::endl;
+    }
 
     *result_contours = red_contours;
 }
@@ -309,7 +336,7 @@ bool processDir(std::string dir_name) {
             contourCalc(red_enhanced, &red_contour, &contours_red);
             out_red.insert(out_red.find_first_of("."), "_contours", 9);
             cv::imwrite(out_red.c_str(), red_contour);
-            removeRedundantContours(contours_red, 0, 10, &contours_red_ref);
+            removeRedundantContours(contours_red, 1, 10, &contours_red_ref);
 
 
             cv::RNG rng(12345);
