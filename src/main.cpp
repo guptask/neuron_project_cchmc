@@ -7,6 +7,7 @@
 #include "opencv2/imgcodecs.hpp"
 
 #define NUM_Z_LAYERS  3  // Merge a certain number of z layers
+#define NUM_SYNAPSE_AREA_BINS 10 // Bin count
 
 /* Channel type */
 enum class ChannelType : unsigned char {
@@ -194,18 +195,20 @@ void classifySynapses(std::vector<std::vector<cv::Point>> red_contours,
     std::vector<cv::Moments> mu(red_contours.size());
     std::vector<cv::Point2f> mc(red_contours.size());
 
-    std::vector<unsigned int> count(10);
+    std::vector<std::vector<cv::Point>> temp_contours;
+    std::vector<unsigned int> count(NUM_SYNAPSE_AREA_BINS);
     size_t i = 0;
-    for (auto it = red_contours.begin(); it !=red_contours.end();) {
-        mu[i] = moments(*it, false);
+    while (i < red_contours.size()) {
+        mu[i] = moments(red_contours[i], false);
         mc[i] = cv::Point2f(static_cast<float>(mu[i].m10/mu[i].m00), 
                                 static_cast<float>(mu[i].m01/mu[i].m00));
         if (mu[i].m00) {
-            auto round_area = (unsigned int)mu[i].m00;
-            count[round_area/25]++;
-            it++;
-        } else {
-            it = red_contours.erase(it);
+            unsigned int round_area = (unsigned int)mu[i].m00;
+            unsigned int index = 
+                (round_area/25 < NUM_SYNAPSE_AREA_BINS) ? 
+                                round_area/25 : NUM_SYNAPSE_AREA_BINS-1;
+            count[index]++;
+            temp_contours.push_back(red_contours[i]);
         }
         i++;
     }
@@ -214,7 +217,7 @@ void classifySynapses(std::vector<std::vector<cv::Point>> red_contours,
         *out_data += std::to_string(count[i]) + ",";
     }
 
-    *result_contours = red_contours;
+    *result_contours = temp_contours;
 }
 
 /* Process the images inside each directory */
@@ -347,7 +350,6 @@ bool processDir(std::string dir_name, std::string out_file) {
             cv::imwrite(out_red.c_str(), red_contour);
             removeRedundantContours(contours_red, 1, 10, &contours_red_ref);
 
-
             cv::RNG rng(12345);
 
             /** Classify nuclei and astrocytes **/
@@ -401,18 +403,20 @@ int main(int argc, char *argv[]) {
     }
 
     /* Read the list of directories to process */
-    std::ifstream arg_file(argv[1]);
-    if (!arg_file.is_open()) {
+    std::vector<std::string> files;
+    FILE *file = fopen(argv[1], "r");
+    if (!file) {
         std::cerr << "Could not open the file list." << std::endl;
         return -1;
     }
-    std::vector<std::string> files;
-    std::string image_name;
-    while (getline(arg_file, image_name)) {
-        arg_file >> image_name;
+    char line[128];
+    while (fgets(line, sizeof(line), file) != NULL) {
+        line[strlen(line)-1] = '/';
+        std::string temp_str(line);
+        std::string image_name = "data/" + temp_str;
         files.push_back(image_name);
     }
-    arg_file.close();
+    fclose(file);
 
     /* Create the error log for images that could not be processed */
     std::ofstream err_file(argv[2]);
@@ -424,6 +428,7 @@ int main(int argc, char *argv[]) {
     /* Process each image directory */
     std::string out_file(argv[3]);
     for (auto& file_name : files) {
+        std::cout << file_name << std::endl;
         if (!processDir(file_name, out_file)) {
             err_file << file_name << std::endl;
         }
