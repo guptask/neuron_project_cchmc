@@ -1,6 +1,7 @@
 #include <iostream>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <fstream>
 
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/imgcodecs.hpp"
@@ -135,9 +136,11 @@ void removeRedundantContours(std::vector<std::vector<cv::Point>> contours,
 }
 
 /* Classify Nuclei and Astrocytes */
-void classifyNucleiAndAstrocytes(std::vector<std::vector<cv::Point>> blue_contours, 
+void classifyNucleiAndAstrocytes(std::vector<std::vector<cv::Point>> blue_contours,
                                     cv::Mat blue_green_intersection,
-                                    std::vector<std::vector<cv::Point>> *result_contours) {
+                                    std::vector<std::vector<cv::Point>> *result_contours,
+                                    unsigned int *total_cell_cnt,
+                                    unsigned int *nuclei_cnt) {
 
     std::vector<std::vector<cv::Point>> temp_contours;
 
@@ -147,7 +150,7 @@ void classifyNucleiAndAstrocytes(std::vector<std::vector<cv::Point>> blue_contou
             temp_contours.push_back(blue_contours[i]);
         }
     }
-    unsigned int total_cells = temp_contours.size();
+    *total_cell_cnt = temp_contours.size();
 
     // Calculate the aspect ratio of each blue contour, 
     // categorize the astrocytes - whose aspect ratio is not close to 1.
@@ -179,15 +182,14 @@ void classifyNucleiAndAstrocytes(std::vector<std::vector<cv::Point>> blue_contou
             it++;
         }
     }
-    std:: cout << "cell count = " << total_cells 
-                << " , nuclei count = " << temp_contours.size() 
-                << std::endl;
+    *nuclei_cnt = temp_contours.size();
     *result_contours = temp_contours;
 }
 
 /* Classify synapses */
 void classifySynapses(std::vector<std::vector<cv::Point>> red_contours, 
-                        std::vector<std::vector<cv::Point>> *result_contours) {
+                        std::vector<std::vector<cv::Point>> *result_contours,
+                        std::string *out_data) {
 
     std::vector<cv::Moments> mu(red_contours.size());
     std::vector<cv::Point2f> mc(red_contours.size());
@@ -209,14 +211,21 @@ void classifySynapses(std::vector<std::vector<cv::Point>> red_contours,
     }
 
     for (unsigned int i = 0; i < count.size(); i++) {
-        std::cout << "<" << (i+1)*25 << " count = " << count[i] << std::endl;
+        *out_data += std::to_string(count[i]) + ",";
     }
 
     *result_contours = red_contours;
 }
 
 /* Process the images inside each directory */
-bool processDir(std::string dir_name) {
+bool processDir(std::string dir_name, std::string out_file) {
+
+    /* Create the data output file for images that were processed */
+    std::ofstream data_stream(out_file);
+    if (!data_stream.is_open()) {
+        std::cerr << "Could not open the data output file." << std::endl;
+        return false;
+    }
 
     DIR *read_dir = opendir(dir_name.c_str());
     if (!read_dir) {
@@ -328,7 +337,7 @@ bool processDir(std::string dir_name) {
             std::string out_red = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) + 
                                                 "_red_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
             cv::imwrite(out_red.c_str(), red_merge);
-            if(!enhanceImage(red_merge, ChannelType::RED, &red_enhanced)) {
+            if(!enhanceImage(red_merge, ChannelType::RED_LOW, &red_enhanced)) {
                 return false;
             }
             out_red.insert(out_red.find_first_of("."), "_enhanced", 9);
@@ -343,10 +352,13 @@ bool processDir(std::string dir_name) {
 
             /** Classify nuclei and astrocytes **/
             cv::Mat blue_green_intersection;
-            bitwise_and(blue_enhanced, green_enhanced, blue_green_intersection);
-
+            unsigned int total_cell_cnt = 0, nuclei_cnt = 0;
             std::vector<std::vector<cv::Point>> temp_blue_contours;
-            classifyNucleiAndAstrocytes(contours_blue_ref, blue_green_intersection, &temp_blue_contours);
+            bitwise_and(blue_enhanced, green_enhanced, blue_green_intersection);
+            classifyNucleiAndAstrocytes(contours_blue_ref, blue_green_intersection, 
+                                        &temp_blue_contours, &total_cell_cnt, &nuclei_cnt);
+            data_stream << dir_name << "," << std::to_string(z_index-NUM_Z_LAYERS+1) << "," 
+                                << total_cell_cnt << "," << nuclei_cnt << ",";
 
             // Draw contours
             cv::Mat drawing_blue = cv::Mat::zeros(blue_contour.size(), CV_32S);
@@ -360,7 +372,9 @@ bool processDir(std::string dir_name) {
 
             /** Classify synapses **/
             std::vector<std::vector<cv::Point>> temp_red_contours;
-            classifySynapses(contours_red_ref, &temp_red_contours);
+            std::string synapse_bin_cnt;
+            classifySynapses(contours_red_ref, &temp_red_contours, &synapse_bin_cnt);
+            data_stream << synapse_bin_cnt << std::endl;
 
             // Draw contours
             cv::Mat drawing_red = cv::Mat::zeros(red_contour.size(), CV_32S);
@@ -373,14 +387,49 @@ bool processDir(std::string dir_name) {
             cv::imwrite(out_red.c_str(), drawing_red);
         }
     }
+    data_stream.close();
     return true;
 }
 
+/* Main - create the threads and start the processing */
 int main(int argc, char *argv[]) {
-    std::string str(argv[1]);
-    if (!processDir(str)) {
+
+    /* Check for argument count */
+    if (argc != 4) {
+        std::cerr << "Invalid number of arguments." << std::endl;
         return -1;
     }
+
+    /* Read the list of directories to process */
+    std::ifstream arg_file(argv[1]);
+    if (!arg_file.is_open()) {
+        std::cerr << "Could not open the file list." << std::endl;
+        return -1;
+    }
+    std::vector<std::string> files;
+    std::string image_name;
+    while (getline(arg_file, image_name)) {
+        arg_file >> image_name;
+        files.push_back(image_name);
+    }
+    arg_file.close();
+
+    /* Create the error log for images that could not be processed */
+    std::ofstream err_file(argv[2]);
+    if (!err_file.is_open()) {
+        std::cerr << "Could not open the error log file." << std::endl;
+        return -1;
+    }
+
+    /* Process each image directory */
+    std::string out_file(argv[3]);
+    for (auto& file_name : files) {
+        if (!processDir(file_name, out_file)) {
+            err_file << file_name << std::endl;
+        }
+    }
+    err_file.close();
+
     return 0;
 }
 
