@@ -224,7 +224,8 @@ void classifySynapses(std::vector<std::vector<cv::Point>> red_contours,
 bool processDir(std::string dir_name, std::string out_file) {
 
     /* Create the data output file for images that were processed */
-    std::ofstream data_stream(out_file);
+    std::ofstream data_stream;
+    data_stream.open(out_file, std::ios::app);
     if (!data_stream.is_open()) {
         std::cerr << "Could not open the data output file." << std::endl;
         return false;
