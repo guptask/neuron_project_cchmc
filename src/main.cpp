@@ -7,7 +7,8 @@
 #include "opencv2/imgcodecs.hpp"
 
 #define NUM_Z_LAYERS           3   // Merge a certain number of z layers
-#define NUM_SYNAPSE_AREA_BINS  15  // Bin count
+#define NUM_SYNAPSE_AREA_BINS  20  // Number of bins
+#define SYNAPSE_BIN_AREA       25  // Bin area
 #define DEBUG_FLAG             1   // Debug flag for image channels
 
 /* Channel type */
@@ -231,8 +232,8 @@ void classifySynapses(std::vector<std::vector<cv::Point>> red_contours,
         if (mu[i].m00) {
             unsigned int round_area = (unsigned int)mu[i].m00;
             unsigned int index = 
-                (round_area/25 < NUM_SYNAPSE_AREA_BINS) ? 
-                                round_area/25 : NUM_SYNAPSE_AREA_BINS-1;
+                (round_area/SYNAPSE_BIN_AREA < NUM_SYNAPSE_AREA_BINS) ? 
+                                round_area/SYNAPSE_BIN_AREA : NUM_SYNAPSE_AREA_BINS-1;
             count[index]++;
             temp_contours.push_back(red_contours[i]);
         }
@@ -360,7 +361,8 @@ bool processDir(std::string dir_name, std::string out_file) {
             out_green.insert(out_green.find_first_of("."), "_contours", 9);
             cv::imwrite(out_green.c_str(), green_contour);
 
-            // Red channel - low
+            // Red channel
+            // Lower intensity
             cv::Mat red_merge, red_low_enhanced, red_low_contour;
             std::vector<std::vector<cv::Point>> contours_red_low, contours_red_low_ref;
             cv::merge(red, red_merge);
@@ -377,9 +379,24 @@ bool processDir(std::string dir_name, std::string out_file) {
             cv::imwrite(out_red_low.c_str(), red_low_contour);
             removeRedundantContours(contours_red_low, 1, 10, &contours_red_low_ref);
 
-            cv::RNG rng(12345);
+            // High intensity
+            cv::Mat red_high_enhanced, red_high_contour;
+            std::vector<std::vector<cv::Point>> contours_red_high, contours_red_high_ref;
+            std::string out_red_high = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) + 
+                                                "_red_high_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
+            if(!enhanceImage(red_merge, ChannelType::RED_HIGH, &red_high_enhanced)) {
+                return false;
+            }
+            out_red_high.insert(out_red_high.find_first_of("."), "_enhanced", 9);
+            cv::imwrite(out_red_high.c_str(), red_high_enhanced);
+            contourCalc(red_high_enhanced, &red_high_contour, &contours_red_high);
+            out_red_high.insert(out_red_high.find_first_of("."), "_contours", 9);
+            cv::imwrite(out_red_high.c_str(), red_high_contour);
+            removeRedundantContours(contours_red_high, 1, 10, &contours_red_high_ref);
+
 
             /** Classify nuclei and astrocytes **/
+            cv::RNG rng(12345);
             cv::Mat blue_green_intersection;
             unsigned int total_cell_cnt = 0, nuclei_cnt = 0;
             std::vector<std::vector<cv::Point>> temp_blue_contours;
@@ -400,10 +417,12 @@ bool processDir(std::string dir_name, std::string out_file) {
             cv::imwrite(out_blue.c_str(), drawing_blue);
 
             /** Classify synapses **/
-            std::vector<std::vector<cv::Point>> temp_red_low_contours;
-            std::string synapse_bin_cnt;
-            classifySynapses(contours_red_low_ref, &temp_red_low_contours, &synapse_bin_cnt);
-            data_stream << synapse_bin_cnt << std::endl;
+            std::vector<std::vector<cv::Point>> temp_red_low_contours, temp_red_high_contours;
+            std::string synapse_low_bin_cnt, synapse_high_bin_cnt;
+            classifySynapses(contours_red_low_ref, &temp_red_low_contours, &synapse_low_bin_cnt);
+            classifySynapses(contours_red_high_ref, &temp_red_high_contours, &synapse_high_bin_cnt);
+            data_stream << temp_red_low_contours.size() << "," << temp_red_high_contours.size() 
+                                << "," << synapse_low_bin_cnt << std::endl;
 
             // Draw contours
             cv::Mat drawing_red_low = cv::Mat::zeros(red_low_contour.size(), CV_32S);
