@@ -473,6 +473,21 @@ int main(int argc, char *argv[]) {
 
     /* Process each image directory */
     std::string out_file(argv[3]);
+    std::ofstream data_stream;
+    data_stream.open(out_file, std::ios::out);
+    if (!data_stream.is_open()) {
+        std::cerr << "Could not create the data output file." << std::endl;
+        return -1;
+    }
+    data_stream << "path/image,frame,total cell count,nuclei count,\
+                total synapse count,high intensity synapse count," << std::endl;
+    for (unsigned int i = 0; i < NUM_SYNAPSE_AREA_BINS; i++) {
+        data_stream << "synapse area (" << i*SYNAPSE_BIN_AREA 
+                        << "-" << (i+1)*SYNAPSE_BIN_AREA << ")" << ",";
+    }
+    data_stream << std::endl;
+    data_stream.close();
+
     for (auto& file_name : files) {
         std::cout << file_name << std::endl;
         if (!processDir(file_name, out_file)) {
