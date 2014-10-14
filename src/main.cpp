@@ -24,28 +24,53 @@ bool enhanceImage(cv::Mat src, ChannelType channel_type, cv::Mat *dst) {
     // Convert to grayscale and equalize the histogram
     cv::Mat src_equalized;
     cvtColor (src, src_equalized, cv::COLOR_BGR2GRAY);
-    equalizeHist(src_equalized, src_equalized);
 
     // Enhance the image using Gaussian blur and thresholding
     cv::Mat enhanced;
     switch(channel_type) {
         case ChannelType::BLUE: {
+            equalizeHist(src_equalized, src_equalized);
             cv::GaussianBlur(src_equalized, enhanced, cv::Size(5,5), 0, 0);
             cv::threshold(enhanced, enhanced, 218, 255, cv::THRESH_BINARY);
         } break;
 
         case ChannelType::GREEN: {
+            equalizeHist(src_equalized, src_equalized);
             cv::GaussianBlur(src_equalized, enhanced, cv::Size(25,25), 0, 0);
             cv::threshold(enhanced, enhanced, 208, 255, cv::THRESH_BINARY);
         } break;
 
         case ChannelType::RED_LOW: {
+            // Enhance the red channel low intensities
+            cv::Mat red_low = src_equalized;
+
+            // Create the mask
+            cv::threshold(src_equalized, src_equalized, 20, 255, cv::THRESH_TOZERO);
+            cv::threshold(src_equalized, src_equalized, 150, 255, cv::THRESH_TRUNC);
+            bitwise_not(src_equalized, src_equalized);
             cv::GaussianBlur(src_equalized, enhanced, cv::Size(25,25), 0, 0);
-            cv::threshold(enhanced, enhanced, 208, 255, cv::THRESH_BINARY);
+            cv::threshold(enhanced, enhanced, 210, 255, cv::THRESH_BINARY);
+
+            // Enhance the low intensity features
+            cv::Mat red_low_gauss;
+            cv::GaussianBlur(red_low, red_low_gauss, cv::Size(25,25), 0, 0);
+            bitwise_and(red_low_gauss, enhanced, enhanced);
+            cv::threshold(enhanced, enhanced, 240, 255, cv::THRESH_TOZERO_INV);
+            cv::threshold(enhanced, enhanced, 50, 255, cv::THRESH_BINARY);
         } break;
 
         case ChannelType::RED_HIGH: {
+            // Enhance the red channel higher intensities
 
+            // Create the mask
+            cv::threshold(src_equalized, src_equalized, 20, 255, cv::THRESH_TOZERO);
+            cv::threshold(src_equalized, src_equalized, 150, 255, cv::THRESH_TRUNC);
+            bitwise_not(src_equalized, src_equalized);
+            cv::GaussianBlur(src_equalized, enhanced, cv::Size(25,25), 0, 0);
+            cv::threshold(enhanced, enhanced, 210, 255, cv::THRESH_BINARY);
+
+            // Invert the mask
+            bitwise_not(enhanced, enhanced);
         } break;
 
         default: {
