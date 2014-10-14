@@ -8,6 +8,7 @@
 
 #define NUM_Z_LAYERS  3  // Merge a certain number of z layers
 #define NUM_SYNAPSE_AREA_BINS 10 // Bin count
+#define DEBUG_FLAG 0 // Debug flag for image channels
 
 /* Channel type */
 enum class ChannelType : unsigned char {
@@ -307,7 +308,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             cv::merge(blue, blue_merge);
             std::string out_blue = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) + 
                                             "_blue_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
-            cv::imwrite(out_blue.c_str(), blue_merge);
+            if (DEBUG_FLAG) cv::imwrite(out_blue.c_str(), blue_merge);
             if(!enhanceImage(blue_merge, ChannelType::BLUE, &blue_enhanced)) {
                 return false;
             }
@@ -324,7 +325,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             cv::merge(green, green_merge);
             std::string out_green = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) + 
                                             "_green_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
-            cv::imwrite(out_green.c_str(), green_merge);
+            if (DEBUG_FLAG) cv::imwrite(out_green.c_str(), green_merge);
             if(!enhanceImage(green_merge, ChannelType::GREEN, &green_enhanced)) {
                 return false;
             }
@@ -334,22 +335,22 @@ bool processDir(std::string dir_name, std::string out_file) {
             out_green.insert(out_green.find_first_of("."), "_contours", 9);
             cv::imwrite(out_green.c_str(), green_contour);
 
-            // Red channel
-            cv::Mat red_merge, red_enhanced, red_contour;
-            std::vector<std::vector<cv::Point>> contours_red, contours_red_ref;
+            // Red channel - low
+            cv::Mat red_merge, red_low_enhanced, red_low_contour;
+            std::vector<std::vector<cv::Point>> contours_red_low, contours_red_low_ref;
             cv::merge(red, red_merge);
-            std::string out_red = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) + 
-                                                "_red_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
-            cv::imwrite(out_red.c_str(), red_merge);
-            if(!enhanceImage(red_merge, ChannelType::RED_LOW, &red_enhanced)) {
+            std::string out_red_low = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) + 
+                                                "_red_low_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
+            if (DEBUG_FLAG) cv::imwrite(out_red_low.c_str(), red_merge);
+            if(!enhanceImage(red_merge, ChannelType::RED_LOW, &red_low_enhanced)) {
                 return false;
             }
-            out_red.insert(out_red.find_first_of("."), "_enhanced", 9);
-            cv::imwrite(out_red.c_str(), red_enhanced);
-            contourCalc(red_enhanced, &red_contour, &contours_red);
-            out_red.insert(out_red.find_first_of("."), "_contours", 9);
-            cv::imwrite(out_red.c_str(), red_contour);
-            removeRedundantContours(contours_red, 1, 10, &contours_red_ref);
+            out_red_low.insert(out_red_low.find_first_of("."), "_enhanced", 9);
+            cv::imwrite(out_red_low.c_str(), red_low_enhanced);
+            contourCalc(red_low_enhanced, &red_low_contour, &contours_red_low);
+            out_red_low.insert(out_red_low.find_first_of("."), "_contours", 9);
+            cv::imwrite(out_red_low.c_str(), red_low_contour);
+            removeRedundantContours(contours_red_low, 1, 10, &contours_red_low_ref);
 
             cv::RNG rng(12345);
 
@@ -374,20 +375,20 @@ bool processDir(std::string dir_name, std::string out_file) {
             cv::imwrite(out_blue.c_str(), drawing_blue);
 
             /** Classify synapses **/
-            std::vector<std::vector<cv::Point>> temp_red_contours;
+            std::vector<std::vector<cv::Point>> temp_red_low_contours;
             std::string synapse_bin_cnt;
-            classifySynapses(contours_red_ref, &temp_red_contours, &synapse_bin_cnt);
+            classifySynapses(contours_red_low_ref, &temp_red_low_contours, &synapse_bin_cnt);
             data_stream << synapse_bin_cnt << std::endl;
 
             // Draw contours
-            cv::Mat drawing_red = cv::Mat::zeros(red_contour.size(), CV_32S);
-            for (size_t i = 0; i< temp_red_contours.size(); i++) {
+            cv::Mat drawing_red_low = cv::Mat::zeros(red_low_contour.size(), CV_32S);
+            for (size_t i = 0; i< temp_red_low_contours.size(); i++) {
                 cv::Scalar color = cv::Scalar(rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255));
-                cv::drawContours(drawing_red, temp_red_contours, (int)i, color, 2, 8, 
+                cv::drawContours(drawing_red_low, temp_red_low_contours, (int)i, color, 2, 8, 
                                             std::vector<cv::Vec4i>(), 0, cv::Point());
             }
-            out_red.insert(out_red.find_first_of("."), "_classification", 15);
-            cv::imwrite(out_red.c_str(), drawing_red);
+            out_red_low.insert(out_red_low.find_first_of("."), "_classification", 15);
+            cv::imwrite(out_red_low.c_str(), drawing_red_low);
         }
     }
     data_stream.close();
