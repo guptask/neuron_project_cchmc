@@ -6,9 +6,9 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/imgcodecs.hpp"
 
-#define NUM_Z_LAYERS  3  // Merge a certain number of z layers
-#define NUM_SYNAPSE_AREA_BINS 10 // Bin count
-#define DEBUG_FLAG 0 // Debug flag for image channels
+#define NUM_Z_LAYERS           3   // Merge a certain number of z layers
+#define NUM_SYNAPSE_AREA_BINS  10  // Bin count
+#define DEBUG_FLAG             1   // Debug flag for image channels
 
 /* Channel type */
 enum class ChannelType : unsigned char {
