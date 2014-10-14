@@ -481,11 +481,12 @@ int main(int argc, char *argv[]) {
     }
     data_stream << "path/image,frame,total cell count,nuclei count,\
                 total synapse count,high intensity synapse count,";
-    for (unsigned int i = 0; i < NUM_SYNAPSE_AREA_BINS; i++) {
-        data_stream << "synapse area (" << i*SYNAPSE_BIN_AREA 
-                        << "-" << (i+1)*SYNAPSE_BIN_AREA << ")" << ",";
+    for (unsigned int i = 0; i < NUM_SYNAPSE_AREA_BINS-1; i++) {
+        data_stream << i*SYNAPSE_BIN_AREA << " <= synapse area < " 
+                    << (i+1)*SYNAPSE_BIN_AREA << ",";
     }
-    data_stream << std::endl;
+    data_stream << "synapse area >= " 
+                << (NUM_SYNAPSE_AREA_BINS-1)*SYNAPSE_BIN_AREA << std::endl;
     data_stream.close();
 
     for (auto& file_name : files) {
