@@ -480,7 +480,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
     data_stream << "path/image,frame,total cell count,nuclei count,\
-                total synapse count,high intensity synapse count," << std::endl;
+                total synapse count,high intensity synapse count,";
     for (unsigned int i = 0; i < NUM_SYNAPSE_AREA_BINS; i++) {
         data_stream << "synapse area (" << i*SYNAPSE_BIN_AREA 
                         << "-" << (i+1)*SYNAPSE_BIN_AREA << ")" << ",";
