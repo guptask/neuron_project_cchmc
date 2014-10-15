@@ -163,12 +163,12 @@ void removeRedundantContours(std::vector<std::vector<cv::Point>> contours,
     *res_contours = temp_contours_poly;
 }
 
-/* Classify Nuclei and Astrocytes */
-void classifyNucleiAndAstrocytes(std::vector<std::vector<cv::Point>> blue_contours,
+/* Classify Neurons and Astrocytes */
+void classifyNeuronsAndAstrocytes(std::vector<std::vector<cv::Point>> blue_contours,
                                     cv::Mat blue_green_intersection,
                                     std::vector<std::vector<cv::Point>> *result_contours,
                                     unsigned int *total_cell_cnt,
-                                    unsigned int *nuclei_cnt) {
+                                    unsigned int *neuron_cnt) {
 
     std::vector<std::vector<cv::Point>> temp_contours;
 
@@ -210,7 +210,7 @@ void classifyNucleiAndAstrocytes(std::vector<std::vector<cv::Point>> blue_contou
             it++;
         }
     }
-    *nuclei_cnt = temp_contours.size();
+    *neuron_cnt = temp_contours.size();
     *result_contours = temp_contours;
 }
 
@@ -395,16 +395,16 @@ bool processDir(std::string dir_name, std::string out_file) {
             removeRedundantContours(contours_red_high, 1, 10, &contours_red_high_ref);
 
 
-            /** Classify nuclei and astrocytes **/
+            /** Classify neurons and astrocytes **/
             cv::RNG rng(12345);
             cv::Mat blue_green_intersection;
-            unsigned int total_cell_cnt = 0, nuclei_cnt = 0;
+            unsigned int total_cell_cnt = 0, neuron_cnt = 0;
             std::vector<std::vector<cv::Point>> temp_blue_contours;
             bitwise_and(blue_enhanced, green_enhanced, blue_green_intersection);
-            classifyNucleiAndAstrocytes(contours_blue_ref, blue_green_intersection, 
-                                        &temp_blue_contours, &total_cell_cnt, &nuclei_cnt);
+            classifyNeuronsAndAstrocytes(contours_blue_ref, blue_green_intersection, 
+                                            &temp_blue_contours, &total_cell_cnt, &neuron_cnt);
             data_stream << dir_name << "," << std::to_string(z_index-NUM_Z_LAYERS+1) << "," 
-                                << total_cell_cnt << "," << nuclei_cnt << ",";
+                                << total_cell_cnt << "," << neuron_cnt << ",";
 
             // Draw contours
             cv::Mat drawing_blue = cv::Mat::zeros(blue_contour.size(), CV_32S);
@@ -443,14 +443,17 @@ bool processDir(std::string dir_name, std::string out_file) {
 int main(int argc, char *argv[]) {
 
     /* Check for argument count */
-    if (argc != 4) {
+    if (argc != 5) {
         std::cerr << "Invalid number of arguments." << std::endl;
         return -1;
     }
 
+    /* Read the path to the data */
+    std::string path(argv[1]);
+
     /* Read the list of directories to process */
     std::vector<std::string> files;
-    FILE *file = fopen(argv[1], "r");
+    FILE *file = fopen(argv[2], "r");
     if (!file) {
         std::cerr << "Could not open the file list." << std::endl;
         return -1;
@@ -459,27 +462,27 @@ int main(int argc, char *argv[]) {
     while (fgets(line, sizeof(line), file) != NULL) {
         line[strlen(line)-1] = '/';
         std::string temp_str(line);
-        std::string image_name = "data/" + temp_str;
+        std::string image_name = path + temp_str;
         files.push_back(image_name);
     }
     fclose(file);
 
     /* Create the error log for images that could not be processed */
-    std::ofstream err_file(argv[2]);
+    std::ofstream err_file(argv[3]);
     if (!err_file.is_open()) {
         std::cerr << "Could not open the error log file." << std::endl;
         return -1;
     }
 
     /* Process each image directory */
-    std::string out_file(argv[3]);
+    std::string out_file(argv[4]);
     std::ofstream data_stream;
     data_stream.open(out_file, std::ios::out);
     if (!data_stream.is_open()) {
         std::cerr << "Could not create the data output file." << std::endl;
         return -1;
     }
-    data_stream << "path/image,frame,total cell count,nuclei count,\
+    data_stream << "path/image,frame,total cell count,neuron count,\
                 total synapse count,high intensity synapse count,";
     for (unsigned int i = 0; i < NUM_SYNAPSE_AREA_BINS-1; i++) {
         data_stream << i*SYNAPSE_BIN_AREA << " <= synapse area < " 
