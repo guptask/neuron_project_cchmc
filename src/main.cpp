@@ -173,7 +173,7 @@ void classifyNeuronsAndAstrocytes(std::vector<std::vector<cv::Point>> blue_conto
 
     // Eliminate small contours via contour area calculation
     for (size_t i = 0; i < blue_contours.size(); i++) {
-        if (arcLength(blue_contours[i], true) >= 250) {
+        if ((arcLength(blue_contours[i], true) >= 250) && (blue_contours[i].size() > 10)) {
             temp_contours.push_back(blue_contours[i]);
         }
     }
@@ -345,8 +345,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             removeRedundantContours(contours_blue, 12, 80, &contours_blue_ref);
 
             // Green channel
-            cv::Mat green_merge, green_enhanced, green_contour;
-            std::vector<std::vector<cv::Point>> contours_green;
+            cv::Mat green_merge, green_enhanced;
             cv::merge(green, green_merge);
             std::string out_green = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) + 
                                             "_green_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
@@ -356,9 +355,6 @@ bool processDir(std::string dir_name, std::string out_file) {
             }
             out_green.insert(out_green.find_first_of("."), "_enhanced", 9);
             cv::imwrite(out_green.c_str(), green_enhanced);
-            contourCalc(green_enhanced, &green_contour, &contours_green);
-            out_green.insert(out_green.find_first_of("."), "_contours", 9);
-            cv::imwrite(out_green.c_str(), green_contour);
 
             // Red channel
             // Lower intensity
@@ -400,6 +396,8 @@ bool processDir(std::string dir_name, std::string out_file) {
             unsigned int total_cell_cnt = 0, neuron_cnt = 0;
             std::vector<std::vector<cv::Point>> temp_blue_contours;
             bitwise_and(blue_enhanced, green_enhanced, blue_green_intersection);
+            out_green.insert(out_green.find_first_of("."), "_blue_intersection", 18);
+            if (DEBUG_FLAG) cv::imwrite(out_green.c_str(), blue_green_intersection);
             classifyNeuronsAndAstrocytes(contours_blue_ref, blue_green_intersection, 
                                             &temp_blue_contours, &total_cell_cnt, &neuron_cnt);
             data_stream << dir_name << "," << std::to_string(z_index-NUM_Z_LAYERS+1) << "," 
