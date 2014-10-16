@@ -32,7 +32,7 @@ bool enhanceImage(cv::Mat src, ChannelType channel_type, cv::Mat *dst) {
         case ChannelType::BLUE: {
             equalizeHist(src_gray, src_gray);
             cv::GaussianBlur(src_gray, enhanced, cv::Size(5,5), 0, 0);
-            cv::threshold(enhanced, enhanced, 218, 255, cv::THRESH_BINARY);
+            cv::threshold(enhanced, enhanced, 200, 255, cv::THRESH_BINARY);
         } break;
 
         case ChannelType::GREEN: {
@@ -173,7 +173,7 @@ void classifyNeuronsAndAstrocytes(std::vector<std::vector<cv::Point>> blue_conto
 
     // Eliminate small contours via contour area calculation
     for (size_t i = 0; i < blue_contours.size(); i++) {
-        if ((arcLength(blue_contours[i], true) >= 250) && (blue_contours[i].size() > 10)) {
+        if ((arcLength(blue_contours[i], true) >= 250) && (blue_contours[i].size() >= 5)) {
             temp_contours.push_back(blue_contours[i]);
         }
     }
@@ -181,18 +181,21 @@ void classifyNeuronsAndAstrocytes(std::vector<std::vector<cv::Point>> blue_conto
 
     // Calculate the aspect ratio of each blue contour, 
     // categorize the astrocytes - whose aspect ratio is not close to 1.
-    /*for (auto it = temp_contours.begin(); it != temp_contours.end();) {
-        cv::RotatedRect ellipse = fitEllipse(cv::Mat(*it));
-        float aspect_ratio = float(ellipse.size.width)/ellipse.size.height;
-        if (aspect_ratio <= 0.5) {
+    for (auto it = temp_contours.begin(); it != temp_contours.end();) {
+        cv::RotatedRect min_area_rect = minAreaRect(cv::Mat(*it));
+        float aspect_ratio = float(min_area_rect.size.width)/min_area_rect.size.height;
+        if (aspect_ratio > 1.0) {
+            aspect_ratio = 1.0/aspect_ratio;
+        }
+        if (aspect_ratio <= 0.3) {
             it = temp_contours.erase(it);
         } else {
             it++;
         }
-    }*/
+    }
 
     // Find the coverage ratio for each contour on the blue-green intersection mask
-    for (auto it = temp_contours.begin(); it != temp_contours.end();) {
+    /*for (auto it = temp_contours.begin(); it != temp_contours.end();) {
         std::vector<std::vector<cv::Point>> specific_contour (1, *it);
         cv::Mat drawing = cv::Mat::zeros(blue_green_intersection.size(), CV_8U);
         cv::drawContours(drawing, specific_contour, -1, cv::Scalar::all(255), -1, 8, 
@@ -203,12 +206,12 @@ void classifyNeuronsAndAstrocytes(std::vector<std::vector<cv::Point>> blue_conto
         int contour_count_after = countNonZero(contour_intersection);
 
         float coverage_ratio = ((float)contour_count_after)/contour_count_before;
-        if (coverage_ratio < 0.35) {
+        if (coverage_ratio < 0.2) {
             it = temp_contours.erase(it);
         } else {
             it++;
         }
-    }
+    }*/
     *neuron_cnt = temp_contours.size();
     *result_contours = temp_contours;
 }
@@ -342,7 +345,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             contourCalc(blue_enhanced, &blue_contour, &contours_blue);
             out_blue.insert(out_blue.find_first_of("."), "_contours", 9);
             cv::imwrite(out_blue.c_str(), blue_contour);
-            removeRedundantContours(contours_blue, 12, 80, &contours_blue_ref);
+            removeRedundantContours(contours_blue, 50, 80, &contours_blue_ref);
 
             // Green channel
             cv::Mat green_merge, green_enhanced;
