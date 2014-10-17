@@ -19,6 +19,13 @@ enum class ChannelType : unsigned char {
     RED_HIGH
 };
 
+/* Hierarchy type */
+enum class HierarchyType : unsigned char {
+    INVALID_CNTR = 0,
+    CHILD_CNTR,
+    PARENT_CNTR
+};
+
 /* Enhance the image */
 bool enhanceImage(cv::Mat src, ChannelType channel_type, cv::Mat *dst) {
 
@@ -83,83 +90,59 @@ bool enhanceImage(cv::Mat src, ChannelType channel_type, cv::Mat *dst) {
 }
 
 /* Find the contours in the image */
-void contourCalc(cv::Mat src, cv::Mat *dst, std::vector<std::vector<cv::Point>> *contour_data) {
+void contourCalc(cv::Mat src, ChannelType channel_type, double min_area, 
+                    cv::Mat *dst, std::vector<std::vector<cv::Point>> *contours, 
+                    std::vector<cv::Vec4i> *hierarchy, std::vector<HierarchyType> *validity_mask) {
 
-    // Blur the image
-    cv::Mat src_blur;
-    cv::blur(src, src_blur, cv::Size(3,3) );
+    switch(channel_type) {
+        case ChannelType::BLUE: {
+            findContours(src, *contours, *hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+        } break;
 
-    cv::Mat canny_output;
-    std::vector<std::vector<cv::Point>> contours;
-    std::vector<cv::Vec4i> hierarchy;
+        case ChannelType::RED_LOW : 
+        case ChannelType::RED_HIGH: {
+            findContours(src, *contours, *hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
+        } break;
 
-    // Detect edges using canny
-    cv::Canny(src_blur, canny_output, 0, 255, 3);
+        case ChannelType::GREEN: default: return;
+    }
 
-    // Find contours
-    cv::findContours(canny_output, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
-    *contour_data = contours;
+    *dst = cv::Mat::zeros(src.size(), CV_8UC3);
+    if (!contours->size()) return;
+    validity_mask->assign(contours->size(), HierarchyType::INVALID_CNTR);
 
-    // Draw contours
-    cv::Mat drawing = cv::Mat::zeros(canny_output.size(), CV_8UC3);
+    // Keep the contours whose size is >= than min_area
     cv::RNG rng(12345);
-    for (size_t i = 0; i< contours.size(); i++) {
-        cv::Scalar color = cv::Scalar(rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255));
-        cv::drawContours(drawing, contours, (int)i, color, 2, 8, hierarchy, 0, cv::Point());
-    }
-    *dst = drawing;
-}
+    for (int index = 0 ; index < (int)contours->size(); index++) {
+        if ((*hierarchy)[index][3] > -1) continue; // ignore child
+        auto cntr_external = (*contours)[index];
+        double area_external = fabs(contourArea(cv::Mat(cntr_external)));
+        if (area_external < min_area) continue;
 
-/* Remove redundant contours */
-void removeRedundantContours(std::vector<std::vector<cv::Point>> contours, 
-                                unsigned int contour_area_lower_limit, 
-                                unsigned int norm_upper_limit, 
-                                std::vector<std::vector<cv::Point>> *res_contours) {
+        std::vector<int> cntr_list;
+        cntr_list.push_back(index);
 
-    std::vector<cv::Moments> mu(contours.size());
-    std::vector<std::vector<cv::Point>> contours_poly(contours.size());
-    std::vector<cv::Point2f> mc(contours.size());
-
-    for (size_t i = 0; i < contours.size(); i++) {
-        approxPolyDP(cv::Mat(contours[i]), contours_poly[i], 3, true);
-        mu[i] = moments(contours_poly[i], false);
-        mc[i] = cv::Point2f(static_cast<float>(mu[i].m10/mu[i].m00), 
-                                static_cast<float>(mu[i].m01/mu[i].m00));
-    }
-
-    std::vector<std::vector<cv::Point>> temp_contours;
-    size_t k = 0;
-    for (size_t i = 0; i < contours_poly.size();) {
-        if (mu[i].m00 >= contour_area_lower_limit) {
-            temp_contours.push_back(contours_poly[i]);
-            size_t j = i+1;
-            for (; j < contours_poly.size(); j++) {
-                if (cv::norm(mc[i]-mc[j]) <= norm_upper_limit) {
-                    if (mu[j].m00 >= contour_area_lower_limit) {
-                        temp_contours[k].insert(temp_contours[k].end(), 
-                                contours_poly[j].begin(), contours_poly[j].end());
-                    }
-                } else {
-                    break;
-                }
+        int index_hole = (*hierarchy)[index][2];
+        double area_hole = 0.0;
+        while (index_hole > -1) {
+            std::vector<cv::Point> cntr_hole = (*contours)[index_hole];
+            double temp_area_hole = fabs(contourArea(cv::Mat(cntr_hole)));
+            if (temp_area_hole) {
+                cntr_list.push_back(index_hole);
+                area_hole += temp_area_hole;
             }
-            i = j;
-            k++;
-        } else {
-            i++;
+            index_hole = (*hierarchy)[index_hole][0];
+        }
+        double area_contour = area_external - area_hole;
+        if (area_contour >= min_area) {
+            (*validity_mask)[cntr_list[0]] = HierarchyType::PARENT_CNTR;
+            for (unsigned int i = 1; i < cntr_list.size(); i++) {
+                (*validity_mask)[cntr_list[i]] = HierarchyType::CHILD_CNTR;
+            }
+            cv::Scalar color = cv::Scalar(rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255));
+            drawContours(*dst, *contours, index, color, cv::FILLED, cv::LINE_8, *hierarchy);
         }
     }
-
-    std::vector<std::vector<cv::Point>> temp_contours_poly(temp_contours.size());
-    std::vector<cv::Moments> temp_mu(temp_contours.size());
-    std::vector<cv::Point2f> temp_mc(temp_contours.size());
-    for (size_t i = 0; i < temp_contours.size(); i++) {
-        temp_mu[i] = moments(temp_contours[i], false);
-        temp_mc[i] = cv::Point2f(static_cast<float>(temp_mu[i].m10/temp_mu[i].m00), 
-                                static_cast<float>(temp_mu[i].m01/temp_mu[i].m00));
-        approxPolyDP(cv::Mat(temp_contours[i]), temp_contours_poly[i], 3, true);
-    }
-    *res_contours = temp_contours_poly;
 }
 
 /* Classify Neurons and Astrocytes */
@@ -316,8 +299,11 @@ bool processDir(std::string dir_name, std::string out_file) {
         if (z_index >= NUM_Z_LAYERS) {
 
             // Blue channel
-            cv::Mat blue_merge, blue_enhanced, blue_contour;
-            std::vector<std::vector<cv::Point>> contours_blue, contours_blue_ref;
+            cv::Mat blue_merge, blue_enhanced, blue_segmented;
+            std::vector<std::vector<cv::Point>> contours_blue;
+            std::vector<cv::Vec4i> hierarchy_blue;
+            std::vector<HierarchyType> blue_contour_mask;
+
             cv::merge(blue, blue_merge);
             std::string out_blue = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) + 
                                             "_blue_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
@@ -327,10 +313,11 @@ bool processDir(std::string dir_name, std::string out_file) {
             }
             out_blue.insert(out_blue.find_first_of("."), "_enhanced", 9);
             cv::imwrite(out_blue.c_str(), blue_enhanced);
-            contourCalc(blue_enhanced, &blue_contour, &contours_blue);
-            out_blue.insert(out_blue.find_first_of("."), "_contours", 9);
-            cv::imwrite(out_blue.c_str(), blue_contour);
-            removeRedundantContours(contours_blue, 50, 80, &contours_blue_ref);
+            contourCalc(blue_enhanced, ChannelType::BLUE, 50.00, 
+                                &blue_segmented, &contours_blue, 
+                                &hierarchy_blue, &blue_contour_mask);
+            out_blue.insert(out_blue.find_first_of("."), "_segmented", 10);
+            cv::imwrite(out_blue.c_str(), blue_segmented);
 
             // Green channel
             cv::Mat green_merge, green_enhanced;
@@ -346,8 +333,11 @@ bool processDir(std::string dir_name, std::string out_file) {
 
             // Red channel
             // Lower intensity
-            cv::Mat red_merge, red_low_enhanced, red_low_contour;
-            std::vector<std::vector<cv::Point>> contours_red_low, contours_red_low_ref;
+            cv::Mat red_merge, red_low_enhanced, red_low_segmented;
+            std::vector<std::vector<cv::Point>> contours_red_low;
+            std::vector<cv::Vec4i> hierarchy_red_low;
+            std::vector<HierarchyType> red_low_contour_mask;
+
             cv::merge(red, red_merge);
             std::string out_red_low = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) + 
                                                 "_red_low_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
@@ -357,14 +347,18 @@ bool processDir(std::string dir_name, std::string out_file) {
             }
             out_red_low.insert(out_red_low.find_first_of("."), "_enhanced", 9);
             cv::imwrite(out_red_low.c_str(), red_low_enhanced);
-            contourCalc(red_low_enhanced, &red_low_contour, &contours_red_low);
-            out_red_low.insert(out_red_low.find_first_of("."), "_contours", 9);
-            cv::imwrite(out_red_low.c_str(), red_low_contour);
-            removeRedundantContours(contours_red_low, 1, 10, &contours_red_low_ref);
+            contourCalc(red_low_enhanced, ChannelType::RED_LOW, 1.0, 
+                                &red_low_segmented, &contours_red_low, 
+                                &hierarchy_red_low, &red_low_contour_mask);
+            out_red_low.insert(out_red_low.find_first_of("."), "_segmented", 10);
+            cv::imwrite(out_red_low.c_str(), red_low_segmented);
 
             // High intensity
-            cv::Mat red_high_enhanced, red_high_contour;
-            std::vector<std::vector<cv::Point>> contours_red_high, contours_red_high_ref;
+            cv::Mat red_high_enhanced, red_high_segmented;
+            std::vector<std::vector<cv::Point>> contours_red_high;
+            std::vector<cv::Vec4i> hierarchy_red_high;
+            std::vector<HierarchyType> red_high_contour_mask;
+
             std::string out_red_high = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) + 
                                                 "_red_high_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
             if(!enhanceImage(red_merge, ChannelType::RED_HIGH, &red_high_enhanced)) {
@@ -372,11 +366,11 @@ bool processDir(std::string dir_name, std::string out_file) {
             }
             out_red_high.insert(out_red_high.find_first_of("."), "_enhanced", 9);
             cv::imwrite(out_red_high.c_str(), red_high_enhanced);
-            contourCalc(red_high_enhanced, &red_high_contour, &contours_red_high);
-            out_red_high.insert(out_red_high.find_first_of("."), "_contours", 9);
-            cv::imwrite(out_red_high.c_str(), red_high_contour);
-            removeRedundantContours(contours_red_high, 1, 10, &contours_red_high_ref);
-
+            contourCalc(red_high_enhanced, ChannelType::RED_HIGH, 1.0, 
+                                &red_high_segmented, &contours_red_high, 
+                                &hierarchy_red_high, &red_high_contour_mask);
+            out_red_high.insert(out_red_high.find_first_of("."), "_segmented", 10);
+            cv::imwrite(out_red_high.c_str(), red_high_segmented);
 
             /** Classify neurons and astrocytes **/
             cv::RNG rng(12345);
@@ -385,13 +379,13 @@ bool processDir(std::string dir_name, std::string out_file) {
             bitwise_and(blue_enhanced, green_enhanced, blue_green_intersection);
             out_green.insert(out_green.find_first_of("."), "_blue_intersection", 18);
             if (DEBUG_FLAG) cv::imwrite(out_green.c_str(), blue_green_intersection);
-            classifyNeuronsAndAstrocytes(contours_blue_ref, blue_green_intersection, 
+            classifyNeuronsAndAstrocytes(contours_blue, blue_green_intersection, 
                                                 &total_cell_contours, &neuron_contours);
             data_stream << dir_name << "," << std::to_string(z_index-NUM_Z_LAYERS+1) << "," 
                             << total_cell_contours.size() << "," << neuron_contours.size() << ",";
 
             // Draw contours
-            cv::Mat drawing_blue = cv::Mat::zeros(blue_contour.size(), CV_32S);
+            cv::Mat drawing_blue = cv::Mat::zeros(blue_segmented.size(), CV_32S);
             for (size_t i = 0; i< neuron_contours.size(); i++) {
                 cv::Scalar color = cv::Scalar(rng.uniform(0, 255), 
                                             rng.uniform(0,255), rng.uniform(0,255));
@@ -404,13 +398,13 @@ bool processDir(std::string dir_name, std::string out_file) {
             /** Classify synapses **/
             std::vector<std::vector<cv::Point>> temp_red_low_contours, temp_red_high_contours;
             std::string synapse_low_bin_cnt, synapse_high_bin_cnt;
-            classifySynapses(contours_red_low_ref, &temp_red_low_contours, &synapse_low_bin_cnt);
-            classifySynapses(contours_red_high_ref, &temp_red_high_contours, &synapse_high_bin_cnt);
+            classifySynapses(contours_red_low, &temp_red_low_contours, &synapse_low_bin_cnt);
+            classifySynapses(contours_red_high, &temp_red_high_contours, &synapse_high_bin_cnt);
             data_stream << temp_red_low_contours.size() << "," << temp_red_high_contours.size() 
                                 << "," << synapse_low_bin_cnt << std::endl;
 
             // Draw contours
-            cv::Mat drawing_red_low = cv::Mat::zeros(red_low_contour.size(), CV_32S);
+            cv::Mat drawing_red_low = cv::Mat::zeros(red_low_segmented.size(), CV_32S);
             for (size_t i = 0; i< temp_red_low_contours.size(); i++) {
                 cv::Scalar color = cv::Scalar(rng.uniform(0, 255), 
                                             rng.uniform(0,255), rng.uniform(0,255));
