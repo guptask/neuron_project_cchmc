@@ -90,9 +90,9 @@ bool enhanceImage(cv::Mat src, ChannelType channel_type, cv::Mat *dst) {
 }
 
 /* Find the contours in the image */
-void contourCalc(cv::Mat src, ChannelType channel_type, double min_area, 
-                    cv::Mat *dst, std::vector<std::vector<cv::Point>> *contours, 
-                    std::vector<cv::Vec4i> *hierarchy, std::vector<HierarchyType> *validity_mask) {
+void contourCalc(cv::Mat src, ChannelType channel_type, double min_area, cv::Mat *dst, 
+                    std::vector<std::vector<cv::Point>> *contours, std::vector<cv::Vec4i> *hierarchy, 
+                    std::vector<HierarchyType> *validity_mask, std::vector<double> *parent_area) {
 
     switch(channel_type) {
         case ChannelType::BLUE: {
@@ -110,6 +110,7 @@ void contourCalc(cv::Mat src, ChannelType channel_type, double min_area,
     *dst = cv::Mat::zeros(src.size(), CV_8UC3);
     if (!contours->size()) return;
     validity_mask->assign(contours->size(), HierarchyType::INVALID_CNTR);
+    parent_area->assign(contours->size(), 0.0);
 
     // Keep the contours whose size is >= than min_area
     cv::RNG rng(12345);
@@ -136,6 +137,7 @@ void contourCalc(cv::Mat src, ChannelType channel_type, double min_area,
         double area_contour = area_external - area_hole;
         if (area_contour >= min_area) {
             (*validity_mask)[cntr_list[0]] = HierarchyType::PARENT_CNTR;
+            (*parent_area)[cntr_list[0]] = area_contour;
             for (unsigned int i = 1; i < cntr_list.size(); i++) {
                 (*validity_mask)[cntr_list[i]] = HierarchyType::CHILD_CNTR;
             }
@@ -303,6 +305,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             std::vector<std::vector<cv::Point>> contours_blue;
             std::vector<cv::Vec4i> hierarchy_blue;
             std::vector<HierarchyType> blue_contour_mask;
+            std::vector<double> blue_contour_area;
 
             cv::merge(blue, blue_merge);
             std::string out_blue = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) + 
@@ -313,9 +316,8 @@ bool processDir(std::string dir_name, std::string out_file) {
             }
             out_blue.insert(out_blue.find_first_of("."), "_enhanced", 9);
             cv::imwrite(out_blue.c_str(), blue_enhanced);
-            contourCalc(blue_enhanced, ChannelType::BLUE, 50.00, 
-                                &blue_segmented, &contours_blue, 
-                                &hierarchy_blue, &blue_contour_mask);
+            contourCalc(blue_enhanced, ChannelType::BLUE, 50.00, &blue_segmented, &contours_blue, 
+                                &hierarchy_blue, &blue_contour_mask, &blue_contour_area);
             out_blue.insert(out_blue.find_first_of("."), "_segmented", 10);
             cv::imwrite(out_blue.c_str(), blue_segmented);
 
@@ -337,6 +339,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             std::vector<std::vector<cv::Point>> contours_red_low;
             std::vector<cv::Vec4i> hierarchy_red_low;
             std::vector<HierarchyType> red_low_contour_mask;
+            std::vector<double> red_low_contour_area;
 
             cv::merge(red, red_merge);
             std::string out_red_low = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) + 
@@ -347,9 +350,8 @@ bool processDir(std::string dir_name, std::string out_file) {
             }
             out_red_low.insert(out_red_low.find_first_of("."), "_enhanced", 9);
             cv::imwrite(out_red_low.c_str(), red_low_enhanced);
-            contourCalc(red_low_enhanced, ChannelType::RED_LOW, 1.0, 
-                                &red_low_segmented, &contours_red_low, 
-                                &hierarchy_red_low, &red_low_contour_mask);
+            contourCalc(red_low_enhanced, ChannelType::RED_LOW, 1.0, &red_low_segmented, &contours_red_low, 
+                                &hierarchy_red_low, &red_low_contour_mask, &red_low_contour_area);
             out_red_low.insert(out_red_low.find_first_of("."), "_segmented", 10);
             cv::imwrite(out_red_low.c_str(), red_low_segmented);
 
@@ -358,6 +360,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             std::vector<std::vector<cv::Point>> contours_red_high;
             std::vector<cv::Vec4i> hierarchy_red_high;
             std::vector<HierarchyType> red_high_contour_mask;
+            std::vector<double> red_high_contour_area;
 
             std::string out_red_high = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) + 
                                                 "_red_high_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
@@ -366,9 +369,8 @@ bool processDir(std::string dir_name, std::string out_file) {
             }
             out_red_high.insert(out_red_high.find_first_of("."), "_enhanced", 9);
             cv::imwrite(out_red_high.c_str(), red_high_enhanced);
-            contourCalc(red_high_enhanced, ChannelType::RED_HIGH, 1.0, 
-                                &red_high_segmented, &contours_red_high, 
-                                &hierarchy_red_high, &red_high_contour_mask);
+            contourCalc(red_high_enhanced, ChannelType::RED_HIGH, 1.0, &red_high_segmented, &contours_red_high, 
+                                &hierarchy_red_high, &red_high_contour_mask, &red_high_contour_area);
             out_red_high.insert(out_red_high.find_first_of("."), "_segmented", 10);
             cv::imwrite(out_red_high.c_str(), red_high_segmented);
 
