@@ -151,11 +151,14 @@ void contourCalc(cv::Mat src, ChannelType channel_type, double min_area, cv::Mat
 
 /* Classify Neurons and Astrocytes */
 void classifyNeuronsAndAstrocytes(std::vector<std::vector<cv::Point>> blue_contours,
+                                    std::vector<HierarchyType> blue_contour_mask,
                                     cv::Mat blue_green_intersection,
                                     std::vector<std::vector<cv::Point>> *total_cell_contours,
                                     std::vector<std::vector<cv::Point>> *neuron_contours) {
 
     for (size_t i = 0; i < blue_contours.size(); i++) {
+
+        if (blue_contour_mask[i] != HierarchyType::PARENT_CNTR) continue;
 
         // Eliminate small contours via contour arc calculation
         if ((arcLength(blue_contours[i], true) >= 250) && (blue_contours[i].size() >= 5)) {
@@ -172,7 +175,7 @@ void classifyNeuronsAndAstrocytes(std::vector<std::vector<cv::Point>> blue_conto
             bitwise_and(drawing, blue_green_intersection, contour_intersection);
             int contour_count_after = countNonZero(contour_intersection);
             float coverage_ratio = ((float)contour_count_after)/contour_count_before;
-            if (coverage_ratio < 0.15) continue;
+            if (coverage_ratio < 0.25) continue;
 
             // Calculate the aspect ratio of the blue contour,
             // categorize as astrocytes if aspect ratio is very low.
@@ -383,7 +386,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             bitwise_and(blue_enhanced, green_enhanced, blue_green_intersection);
             out_green.insert(out_green.find_first_of("."), "_blue_intersection", 18);
             if (DEBUG_FLAG) cv::imwrite(out_green.c_str(), blue_green_intersection);
-            classifyNeuronsAndAstrocytes(contours_blue, blue_green_intersection, 
+            classifyNeuronsAndAstrocytes(contours_blue, blue_contour_mask, blue_green_intersection, 
                                                 &total_cell_contours, &neuron_contours);
             data_stream << dir_name << "," << std::to_string(z_index-NUM_Z_LAYERS+1) << "," 
                             << total_cell_contours.size() << "," << neuron_contours.size() << ",";
