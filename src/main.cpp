@@ -94,20 +94,22 @@ void contourCalc(cv::Mat src, ChannelType channel_type, double min_area, cv::Mat
                     std::vector<std::vector<cv::Point>> *contours, std::vector<cv::Vec4i> *hierarchy, 
                     std::vector<HierarchyType> *validity_mask, std::vector<double> *parent_area) {
 
+    cv::Mat temp_src;
+    src.copyTo(temp_src);
     switch(channel_type) {
         case ChannelType::BLUE: {
-            findContours(src, *contours, *hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+            findContours(temp_src, *contours, *hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
         } break;
 
         case ChannelType::RED_LOW : 
         case ChannelType::RED_HIGH: {
-            findContours(src, *contours, *hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
+            findContours(temp_src, *contours, *hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
         } break;
 
         case ChannelType::GREEN: default: return;
     }
 
-    *dst = cv::Mat::zeros(src.size(), CV_8UC3);
+    *dst = cv::Mat::zeros(temp_src.size(), CV_8UC3);
     if (!contours->size()) return;
     validity_mask->assign(contours->size(), HierarchyType::INVALID_CNTR);
     parent_area->assign(contours->size(), 0.0);
@@ -387,7 +389,7 @@ bool processDir(std::string dir_name, std::string out_file) {
                             << total_cell_contours.size() << "," << neuron_contours.size() << ",";
 
             // Draw contours
-            cv::Mat drawing_blue = cv::Mat::zeros(blue_segmented.size(), CV_32S);
+            cv::Mat drawing_blue = cv::Mat::zeros(blue_enhanced.size(), CV_32S);
             for (size_t i = 0; i< neuron_contours.size(); i++) {
                 cv::Scalar color = cv::Scalar(rng.uniform(0, 255), 
                                             rng.uniform(0,255), rng.uniform(0,255));
