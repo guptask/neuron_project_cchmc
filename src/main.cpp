@@ -173,7 +173,7 @@ void classifyNeuronsAndAstrocytes(std::vector<std::vector<cv::Point>> blue_conto
             bitwise_and(drawing, blue_green_intersection, contour_intersection);
             int contour_count_after = countNonZero(contour_intersection);
             float coverage_ratio = ((float)contour_count_after)/contour_count_before;
-            if (coverage_ratio < 0.25) {
+            if (coverage_ratio < 0.5) {
                 astrocyte_contours->push_back(blue_contours[i]);
             } else {
                 // Calculate the aspect ratio of the blue contour,
@@ -351,7 +351,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             }
             out_blue.insert(out_blue.find_first_of("."), "_enhanced", 9);
             cv::imwrite(out_blue.c_str(), blue_enhanced);
-            contourCalc(blue_enhanced, ChannelType::BLUE, 50.00, &blue_segmented, &contours_blue, 
+            contourCalc(blue_enhanced, ChannelType::BLUE, 100.00, &blue_segmented, &contours_blue, 
                                 &hierarchy_blue, &blue_contour_mask, &blue_contour_area);
             out_blue.insert(out_blue.find_first_of("."), "_segmented", 10);
             cv::imwrite(out_blue.c_str(), blue_segmented);
