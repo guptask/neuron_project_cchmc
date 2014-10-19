@@ -230,37 +230,26 @@ void neuronAstroSepMetrics(std::vector<std::vector<cv::Point>> astrocyte_contour
     *stddev_astrocyte_proximity_cnt = static_cast<float>(stddev.val[0]);
 }
 
-/* Classify synapses */
-void classifySynapses(std::vector<std::vector<cv::Point>> red_contours, 
-                        std::vector<std::vector<cv::Point>> *result_contours,
-                        std::string *out_data) {
+/* Group synapse area into bins */
+void binSynapseArea(std::vector<HierarchyType> contour_mask, 
+                    std::vector<double> contour_area, 
+                    std::string *contour_bins,
+                    unsigned int *contour_cnt) {
 
-    std::vector<cv::Moments> mu(red_contours.size());
-    std::vector<cv::Point2f> mc(red_contours.size());
-
-    std::vector<std::vector<cv::Point>> temp_contours;
-    std::vector<unsigned int> count(NUM_SYNAPSE_AREA_BINS);
-    size_t i = 0;
-    while (i < red_contours.size()) {
-        mu[i] = moments(red_contours[i], false);
-        mc[i] = cv::Point2f(static_cast<float>(mu[i].m10/mu[i].m00), 
-                                static_cast<float>(mu[i].m01/mu[i].m00));
-        if (mu[i].m00) {
-            unsigned int round_area = (unsigned int)mu[i].m00;
-            unsigned int index = 
-                (round_area/SYNAPSE_BIN_AREA < NUM_SYNAPSE_AREA_BINS) ? 
-                                round_area/SYNAPSE_BIN_AREA : NUM_SYNAPSE_AREA_BINS-1;
-            count[index]++;
-            temp_contours.push_back(red_contours[i]);
-        }
-        i++;
+    std::vector<unsigned int> count(NUM_SYNAPSE_AREA_BINS, 0);
+    *contour_cnt = 0;
+    for (size_t i = 0; i < contour_mask.size(); i++) {
+        if (contour_mask[i] != HierarchyType::PARENT_CNTR) continue;
+        unsigned int area = static_cast<unsigned int>(round(contour_area[i]));
+        unsigned int bin_index = (area/SYNAPSE_BIN_AREA < NUM_SYNAPSE_AREA_BINS) ? 
+                                        area/SYNAPSE_BIN_AREA : NUM_SYNAPSE_AREA_BINS-1;
+        count[bin_index]++;
     }
 
-    for (unsigned int i = 0; i < count.size(); i++) {
-        *out_data += std::to_string(count[i]) + ",";
+    for (size_t i = 0; i < count.size(); i++) {
+        *contour_cnt += count[i];
+        *contour_bins += std::to_string(count[i]) + ",";
     }
-
-    *result_contours = temp_contours;
 }
 
 /* Process the images inside each directory */
@@ -455,21 +444,14 @@ bool processDir(std::string dir_name, std::string out_file) {
 
 
             // Classify synapses
-            std::vector<std::vector<cv::Point>> temp_red_low_contours, temp_red_high_contours;
-            std::string synapse_low_bin_cnt, synapse_high_bin_cnt;
-            classifySynapses(contours_red_low, &temp_red_low_contours, &synapse_low_bin_cnt);
-            classifySynapses(contours_red_high, &temp_red_high_contours, &synapse_high_bin_cnt);
-            cv::Mat drawing_red_low = cv::Mat::zeros(red_low_segmented.size(), CV_32S);
-            for (size_t i = 0; i< temp_red_low_contours.size(); i++) {
-                cv::Scalar color = cv::Scalar(rng.uniform(0, 255), 
-                                            rng.uniform(0,255), rng.uniform(0,255));
-                cv::drawContours(drawing_red_low, temp_red_low_contours, (int)i, color, 2, 8, 
-                                            std::vector<cv::Vec4i>(), 0, cv::Point());
-            }
-            out_red_low.insert(out_red_low.find_first_of("."), "_synapses", 9);
-            cv::imwrite(out_red_low.c_str(), drawing_red_low);
-            data_stream << temp_red_low_contours.size() << "," << temp_red_high_contours.size() 
-                        << "," << synapse_low_bin_cnt << std::endl;
+            std::string red_low_synapse_bins, red_high_synapse_bins;
+            unsigned int red_low_contour_cnt, red_high_contour_cnt;
+            binSynapseArea(red_low_contour_mask, red_low_contour_area, 
+                                &red_low_synapse_bins, &red_low_contour_cnt);
+            binSynapseArea(red_high_contour_mask, red_high_contour_area, 
+                                &red_high_synapse_bins, &red_high_contour_cnt);
+            data_stream << red_low_contour_cnt << "," << red_high_contour_cnt << "," 
+                        << red_low_synapse_bins << red_high_synapse_bins << std::endl;
         }
     }
     data_stream.close();
@@ -519,15 +501,25 @@ int main(int argc, char *argv[]) {
         std::cerr << "Could not create the data output file." << std::endl;
         return -1;
     }
+
     data_stream << "path/image,frame,astrocyte count,neuron count,\
                     astrocytes per neuron - mean,astrocytes per neuron - std dev,\
-                    total synapse count,high intensity synapse count,";
+                    low intensity synapse count,high intensity synapse count,";
+
     for (unsigned int i = 0; i < NUM_SYNAPSE_AREA_BINS-1; i++) {
-        data_stream << i*SYNAPSE_BIN_AREA << " <= synapse area < " 
+        data_stream << i*SYNAPSE_BIN_AREA << " <= low intensity synapse area < " 
                     << (i+1)*SYNAPSE_BIN_AREA << ",";
     }
-    data_stream << "synapse area >= " 
+    data_stream << "low intensity synapse area >= " 
+                << (NUM_SYNAPSE_AREA_BINS-1)*SYNAPSE_BIN_AREA << ",";
+
+    for (unsigned int i = 0; i < NUM_SYNAPSE_AREA_BINS-1; i++) {
+        data_stream << i*SYNAPSE_BIN_AREA << " <= high intensity synapse area < " 
+                    << (i+1)*SYNAPSE_BIN_AREA << ",";
+    }
+    data_stream << "high intensity synapse area >= " 
                 << (NUM_SYNAPSE_AREA_BINS-1)*SYNAPSE_BIN_AREA << std::endl;
+
     data_stream.close();
 
     for (auto& file_name : files) {
