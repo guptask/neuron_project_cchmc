@@ -6,10 +6,11 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/imgcodecs.hpp"
 
-#define NUM_Z_LAYERS           3   // Merge a certain number of z layers
-#define NUM_SYNAPSE_AREA_BINS  20  // Number of bins
-#define SYNAPSE_BIN_AREA       25  // Bin area
-#define DEBUG_FLAG             1   // Debug flag for image channels
+#define NUM_Z_LAYERS            3   // Merge a certain number of z layers
+#define NUM_SYNAPSE_AREA_BINS   20  // Number of bins
+#define SYNAPSE_BIN_AREA        25  // Bin area
+#define MAX_NEURON_PROXIMITY    80  // Proximity of an astrocyte to a neuron
+#define DEBUG_FLAG              1   // Debug flag for image channels
 
 /* Channel type */
 enum class ChannelType : unsigned char {
@@ -153,7 +154,7 @@ void contourCalc(cv::Mat src, ChannelType channel_type, double min_area, cv::Mat
 void classifyNeuronsAndAstrocytes(std::vector<std::vector<cv::Point>> blue_contours,
                                     std::vector<HierarchyType> blue_contour_mask,
                                     cv::Mat blue_green_intersection,
-                                    std::vector<std::vector<cv::Point>> *total_cell_contours,
+                                    std::vector<std::vector<cv::Point>> *astrocyte_contours,
                                     std::vector<std::vector<cv::Point>> *neuron_contours) {
 
     for (size_t i = 0; i < blue_contours.size(); i++) {
@@ -162,8 +163,6 @@ void classifyNeuronsAndAstrocytes(std::vector<std::vector<cv::Point>> blue_conto
 
         // Eliminate small contours via contour arc calculation
         if ((arcLength(blue_contours[i], true) >= 250) && (blue_contours[i].size() >= 5)) {
-
-            total_cell_contours->push_back(blue_contours[i]);
 
             // Determine whether cell is a neuron by calculating blue-green coverage area
             std::vector<std::vector<cv::Point>> specific_contour (1, blue_contours[i]);
@@ -175,20 +174,31 @@ void classifyNeuronsAndAstrocytes(std::vector<std::vector<cv::Point>> blue_conto
             bitwise_and(drawing, blue_green_intersection, contour_intersection);
             int contour_count_after = countNonZero(contour_intersection);
             float coverage_ratio = ((float)contour_count_after)/contour_count_before;
-            if (coverage_ratio < 0.25) continue;
-
-            // Calculate the aspect ratio of the blue contour,
-            // categorize as astrocytes if aspect ratio is very low.
-            cv::RotatedRect min_area_rect = minAreaRect(cv::Mat(blue_contours[i]));
-            float aspect_ratio = float(min_area_rect.size.width)/min_area_rect.size.height;
-            if (aspect_ratio > 1.0) {
-                aspect_ratio = 1.0/aspect_ratio;
+            if (coverage_ratio < 0.25) {
+                astrocyte_contours->push_back(blue_contours[i]);
+            } else {
+                // Calculate the aspect ratio of the blue contour,
+                // categorize as astrocytes if aspect ratio is very low.
+                cv::RotatedRect min_area_rect = minAreaRect(cv::Mat(blue_contours[i]));
+                float aspect_ratio = float(min_area_rect.size.width)/min_area_rect.size.height;
+                if (aspect_ratio > 1.0) {
+                    aspect_ratio = 1.0/aspect_ratio;
+                }
+                if (aspect_ratio <= 0.1) {
+                    astrocyte_contours->push_back(blue_contours[i]);
+                } else {
+                    neuron_contours->push_back(blue_contours[i]);
+                }
             }
-            if (aspect_ratio <= 0.1) continue;
-
-            neuron_contours->push_back(blue_contours[i]);
         }
     }
+}
+
+/* Proximity of astrocytes to neurons */
+double neuronAstrocyteProximity(std::vector<std::vector<cv::Point>> astrocyte_contours, 
+                                std::vector<std::vector<cv::Point>> neuron_contours) {
+
+    return 0.0;
 }
 
 /* Classify synapses */
@@ -382,14 +392,15 @@ bool processDir(std::string dir_name, std::string out_file) {
             /** Classify neurons and astrocytes **/
             cv::RNG rng(12345);
             cv::Mat blue_green_intersection;
-            std::vector<std::vector<cv::Point>> total_cell_contours, neuron_contours;
+            std::vector<std::vector<cv::Point>> astrocyte_contours, neuron_contours;
             bitwise_and(blue_enhanced, green_enhanced, blue_green_intersection);
             out_green.insert(out_green.find_first_of("."), "_blue_intersection", 18);
             if (DEBUG_FLAG) cv::imwrite(out_green.c_str(), blue_green_intersection);
             classifyNeuronsAndAstrocytes(contours_blue, blue_contour_mask, blue_green_intersection, 
-                                                &total_cell_contours, &neuron_contours);
+                                                &astrocyte_contours, &neuron_contours);
             data_stream << dir_name << "," << std::to_string(z_index-NUM_Z_LAYERS+1) << "," 
-                            << total_cell_contours.size() << "," << neuron_contours.size() << ",";
+                            << astrocyte_contours.size() << "," << neuron_contours.size() << "," 
+                            << neuronAstrocyteProximity(astrocyte_contours, neuron_contours) << ",";
 
             // Draw contours
             cv::Mat drawing_blue = cv::Mat::zeros(blue_enhanced.size(), CV_32S);
@@ -469,8 +480,10 @@ int main(int argc, char *argv[]) {
         std::cerr << "Could not create the data output file." << std::endl;
         return -1;
     }
-    data_stream << "path/image,frame,total cell count,neuron count,\
-                total synapse count,high intensity synapse count,";
+    data_stream << "path/image,frame,astrocyte count,neuron count,\
+                    neuron proximity avg count for astrocytes (within radius of " 
+                << MAX_NEURON_PROXIMITY << "), total synapse count,\
+                    high intensity synapse count,";
     for (unsigned int i = 0; i < NUM_SYNAPSE_AREA_BINS-1; i++) {
         data_stream << i*SYNAPSE_BIN_AREA << " <= synapse area < " 
                     << (i+1)*SYNAPSE_BIN_AREA << ",";
