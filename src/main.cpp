@@ -7,7 +7,7 @@
 #include "opencv2/imgcodecs.hpp"
 
 #define NUM_Z_LAYERS            3   // Merge a certain number of z layers
-#define NUM_SYNAPSE_AREA_BINS   20  // Number of bins
+#define NUM_SYNAPSE_AREA_BINS   21  // Number of bins
 #define SYNAPSE_BIN_AREA        25  // Bin area
 #define DEBUG_FLAG              1   // Debug flag for image channels
 
@@ -196,7 +196,8 @@ void classifyNeuronsAndAstrocytes(std::vector<std::vector<cv::Point>> blue_conto
 /* Astrocytes-neurons separation metrics */
 void neuronAstroSepMetrics(std::vector<std::vector<cv::Point>> astrocyte_contours, 
                                 std::vector<std::vector<cv::Point>> neuron_contours,
-                                float *avg_astrocyte_proximity_cnt) {
+                                float *mean_astrocyte_proximity_cnt,
+                                float *stddev_astrocyte_proximity_cnt) {
 
     // Calculate the mid point of all astrocytes
     std::vector<cv::Point2f> mc_astrocyte(astrocyte_contours.size());
@@ -214,7 +215,19 @@ void neuronAstroSepMetrics(std::vector<std::vector<cv::Point>> astrocyte_contour
                                             static_cast<float>(mu.m01/mu.m00));
     }
 
-    //cv::norm(mc[i]-mc[j])
+    // Compute the normal distribution parameters of astrocyte count per neuron
+    std::vector<float> count(neuron_contours.size(), 0.0);
+    for (size_t i = 0; i < neuron_contours.size(); i++) {
+        for (size_t j = 0; j < astrocyte_contours.size(); j++) {
+            if (cv::norm(mc_neuron[i] - mc_astrocyte[j]) <= 500.0) {
+                count[i]++;
+            }
+        }
+    }
+    cv::Scalar mean, stddev;
+    cv::meanStdDev(count, mean, stddev);
+    *mean_astrocyte_proximity_cnt = static_cast<float>(mean.val[0]);
+    *stddev_astrocyte_proximity_cnt = static_cast<float>(stddev.val[0]);
 }
 
 /* Classify synapses */
@@ -433,9 +446,12 @@ bool processDir(std::string dir_name, std::string out_file) {
                         << astrocyte_contours.size() << "," << neuron_contours.size() << ",";
 
             // Calculate metrics for astrocytes-neurons separation
-            float avg_astrocyte_proximity_cnt = 0.0;
-            neuronAstroSepMetrics(astrocyte_contours, neuron_contours, &avg_astrocyte_proximity_cnt);
-            data_stream << avg_astrocyte_proximity_cnt << ",";
+            float mean_astrocyte_proximity_cnt = 0.0, stddev_astrocyte_proximity_cnt = 0.0;
+            neuronAstroSepMetrics(astrocyte_contours, neuron_contours, 
+                                    &mean_astrocyte_proximity_cnt, 
+                                    &stddev_astrocyte_proximity_cnt);
+            data_stream << mean_astrocyte_proximity_cnt << "," 
+                        << stddev_astrocyte_proximity_cnt << ",";
 
 
             // Classify synapses
@@ -504,8 +520,8 @@ int main(int argc, char *argv[]) {
         return -1;
     }
     data_stream << "path/image,frame,astrocyte count,neuron count,\
-                    avg astrocyte proximity count,total synapse count,\
-                    high intensity synapse count,";
+                    astrocytes per neuron - mean,astrocytes per neuron - std dev,\
+                    total synapse count,high intensity synapse count,";
     for (unsigned int i = 0; i < NUM_SYNAPSE_AREA_BINS-1; i++) {
         data_stream << i*SYNAPSE_BIN_AREA << " <= synapse area < " 
                     << (i+1)*SYNAPSE_BIN_AREA << ",";
