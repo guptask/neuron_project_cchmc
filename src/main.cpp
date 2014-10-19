@@ -9,7 +9,6 @@
 #define NUM_Z_LAYERS            3   // Merge a certain number of z layers
 #define NUM_SYNAPSE_AREA_BINS   20  // Number of bins
 #define SYNAPSE_BIN_AREA        25  // Bin area
-#define MAX_NEURON_PROXIMITY    80  // Proximity of an astrocyte to a neuron
 #define DEBUG_FLAG              1   // Debug flag for image channels
 
 /* Channel type */
@@ -194,11 +193,28 @@ void classifyNeuronsAndAstrocytes(std::vector<std::vector<cv::Point>> blue_conto
     }
 }
 
-/* Proximity of astrocytes to neurons */
-double neuronAstrocyteProximity(std::vector<std::vector<cv::Point>> astrocyte_contours, 
-                                std::vector<std::vector<cv::Point>> neuron_contours) {
+/* Astrocytes-neurons separation metrics */
+void neuronAstroSepMetrics(std::vector<std::vector<cv::Point>> astrocyte_contours, 
+                                std::vector<std::vector<cv::Point>> neuron_contours,
+                                float *avg_astrocyte_proximity_cnt) {
 
-    return 0.0;
+    // Calculate the mid point of all astrocytes
+    std::vector<cv::Point2f> mc_astrocyte(astrocyte_contours.size());
+    for (size_t i = 0; i < astrocyte_contours.size(); i++) {
+        cv::Moments mu = moments(astrocyte_contours[i], true);
+        mc_astrocyte[i] = cv::Point2f(static_cast<float>(mu.m10/mu.m00), 
+                                            static_cast<float>(mu.m01/mu.m00));
+    }
+
+    // Calculate the mid point of all neurons
+    std::vector<cv::Point2f> mc_neuron(neuron_contours.size());
+    for (size_t i = 0; i < neuron_contours.size(); i++) {
+        cv::Moments mu = moments(neuron_contours[i], true);
+        mc_neuron[i] = cv::Point2f(static_cast<float>(mu.m10/mu.m00), 
+                                            static_cast<float>(mu.m01/mu.m00));
+    }
+
+    //cv::norm(mc[i]-mc[j])
 }
 
 /* Classify synapses */
@@ -312,8 +328,10 @@ bool processDir(std::string dir_name, std::string out_file) {
         green[(z_index-1)%NUM_Z_LAYERS] = channel[1];
         red[(z_index-1)%NUM_Z_LAYERS] = channel[2];
 
-        // Merge, enhance, segment and extract features for a certain number of Z layers
+        // Manipulate RGB channels and extract features for a certain number of Z layers
         if (z_index >= NUM_Z_LAYERS) {
+
+            /* Gather RGB channel information needed for feature extraction */
 
             // Blue channel
             cv::Mat blue_merge, blue_enhanced, blue_segmented;
@@ -348,8 +366,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             out_green.insert(out_green.find_first_of("."), "_enhanced", 9);
             cv::imwrite(out_green.c_str(), green_enhanced);
 
-            // Red channel
-            // Lower intensity
+            // Red channel - Lower intensity
             cv::Mat red_merge, red_low_enhanced, red_low_segmented;
             std::vector<std::vector<cv::Point>> contours_red_low;
             std::vector<cv::Vec4i> hierarchy_red_low;
@@ -370,7 +387,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             out_red_low.insert(out_red_low.find_first_of("."), "_segmented", 10);
             cv::imwrite(out_red_low.c_str(), red_low_segmented);
 
-            // High intensity
+            // Red channel - High intensity
             cv::Mat red_high_enhanced, red_high_segmented;
             std::vector<std::vector<cv::Point>> contours_red_high;
             std::vector<cv::Vec4i> hierarchy_red_high;
@@ -389,20 +406,20 @@ bool processDir(std::string dir_name, std::string out_file) {
             out_red_high.insert(out_red_high.find_first_of("."), "_segmented", 10);
             cv::imwrite(out_red_high.c_str(), red_high_segmented);
 
-            /** Classify neurons and astrocytes **/
-            cv::RNG rng(12345);
+
+            /** Extract multi-dimensional features for analysis **/
+
+            // Blue-green channel intersection
             cv::Mat blue_green_intersection;
-            std::vector<std::vector<cv::Point>> astrocyte_contours, neuron_contours;
             bitwise_and(blue_enhanced, green_enhanced, blue_green_intersection);
             out_green.insert(out_green.find_first_of("."), "_blue_intersection", 18);
             if (DEBUG_FLAG) cv::imwrite(out_green.c_str(), blue_green_intersection);
+
+            // Classify astrocytes and neurons
+            std::vector<std::vector<cv::Point>> astrocyte_contours, neuron_contours;
             classifyNeuronsAndAstrocytes(contours_blue, blue_contour_mask, blue_green_intersection, 
                                                 &astrocyte_contours, &neuron_contours);
-            data_stream << dir_name << "," << std::to_string(z_index-NUM_Z_LAYERS+1) << "," 
-                            << astrocyte_contours.size() << "," << neuron_contours.size() << "," 
-                            << neuronAstrocyteProximity(astrocyte_contours, neuron_contours) << ",";
-
-            // Draw contours
+            cv::RNG rng(12345);
             cv::Mat drawing_blue = cv::Mat::zeros(blue_enhanced.size(), CV_32S);
             for (size_t i = 0; i< neuron_contours.size(); i++) {
                 cv::Scalar color = cv::Scalar(rng.uniform(0, 255), 
@@ -412,16 +429,20 @@ bool processDir(std::string dir_name, std::string out_file) {
             }
             out_blue.insert(out_blue.find_first_of("."), "_neurons", 8);
             cv::imwrite(out_blue.c_str(), drawing_blue);
+            data_stream << dir_name << "," << std::to_string(z_index-NUM_Z_LAYERS+1) << "," 
+                        << astrocyte_contours.size() << "," << neuron_contours.size() << ",";
 
-            /** Classify synapses **/
+            // Calculate metrics for astrocytes-neurons separation
+            float avg_astrocyte_proximity_cnt = 0.0;
+            neuronAstroSepMetrics(astrocyte_contours, neuron_contours, &avg_astrocyte_proximity_cnt);
+            data_stream << avg_astrocyte_proximity_cnt << ",";
+
+
+            // Classify synapses
             std::vector<std::vector<cv::Point>> temp_red_low_contours, temp_red_high_contours;
             std::string synapse_low_bin_cnt, synapse_high_bin_cnt;
             classifySynapses(contours_red_low, &temp_red_low_contours, &synapse_low_bin_cnt);
             classifySynapses(contours_red_high, &temp_red_high_contours, &synapse_high_bin_cnt);
-            data_stream << temp_red_low_contours.size() << "," << temp_red_high_contours.size() 
-                                << "," << synapse_low_bin_cnt << std::endl;
-
-            // Draw contours
             cv::Mat drawing_red_low = cv::Mat::zeros(red_low_segmented.size(), CV_32S);
             for (size_t i = 0; i< temp_red_low_contours.size(); i++) {
                 cv::Scalar color = cv::Scalar(rng.uniform(0, 255), 
@@ -431,6 +452,8 @@ bool processDir(std::string dir_name, std::string out_file) {
             }
             out_red_low.insert(out_red_low.find_first_of("."), "_synapses", 9);
             cv::imwrite(out_red_low.c_str(), drawing_red_low);
+            data_stream << temp_red_low_contours.size() << "," << temp_red_high_contours.size() 
+                        << "," << synapse_low_bin_cnt << std::endl;
         }
     }
     data_stream.close();
@@ -481,8 +504,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
     data_stream << "path/image,frame,astrocyte count,neuron count,\
-                    neuron proximity avg count for astrocytes (within radius of " 
-                << MAX_NEURON_PROXIMITY << "), total synapse count,\
+                    avg astrocyte proximity count,total synapse count,\
                     high intensity synapse count,";
     for (unsigned int i = 0; i < NUM_SYNAPSE_AREA_BINS-1; i++) {
         data_stream << i*SYNAPSE_BIN_AREA << " <= synapse area < " 
