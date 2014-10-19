@@ -432,6 +432,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             out_blue.insert(out_blue.find_first_of("."), "_neurons", 8);
             cv::imwrite(out_blue.c_str(), drawing_blue);
             data_stream << dir_name << "," << std::to_string(z_index-NUM_Z_LAYERS+1) << "," 
+                        << astrocyte_contours.size() + neuron_contours.size() << "," 
                         << astrocyte_contours.size() << "," << neuron_contours.size() << ",";
 
             // Calculate metrics for astrocytes-neurons separation
@@ -450,7 +451,8 @@ bool processDir(std::string dir_name, std::string out_file) {
                                 &red_low_synapse_bins, &red_low_contour_cnt);
             binSynapseArea(red_high_contour_mask, red_high_contour_area, 
                                 &red_high_synapse_bins, &red_high_contour_cnt);
-            data_stream << red_low_contour_cnt << "," << red_high_contour_cnt << "," 
+            data_stream << red_low_contour_cnt + red_high_contour_cnt << "," 
+                        << red_low_contour_cnt << "," << red_high_contour_cnt << "," 
                         << red_low_synapse_bins << red_high_synapse_bins << std::endl;
         }
     }
@@ -502,9 +504,10 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    data_stream << "path/image,frame,astrocyte count,neuron count,\
+    data_stream << "path/image,frame,total cell count,astrocyte count,neuron count,\
                     astrocytes per neuron - mean,astrocytes per neuron - std dev,\
-                    low intensity synapse count,high intensity synapse count,";
+                    total synapse count,low intensity synapse count,\
+                    high intensity synapse count,";
 
     for (unsigned int i = 0; i < NUM_SYNAPSE_AREA_BINS-1; i++) {
         data_stream << i*SYNAPSE_BIN_AREA << " <= low intensity synapse area < " 
