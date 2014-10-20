@@ -37,14 +37,22 @@ bool enhanceImage(cv::Mat src, ChannelType channel_type, cv::Mat *dst) {
     cv::Mat enhanced;
     switch(channel_type) {
         case ChannelType::BLUE: {
-            equalizeHist(src_gray, src_gray);
-            cv::GaussianBlur(src_gray, enhanced, cv::Size(5,5), 0, 0);
-            cv::threshold(enhanced, enhanced, 200, 255, cv::THRESH_BINARY);
+            // Enhance the blue channel
+
+            // Create the mask
+            cv::threshold(src_gray, src_gray, 10, 255, cv::THRESH_TOZERO);
+            bitwise_not(src_gray, src_gray);
+            cv::GaussianBlur(src_gray, enhanced, cv::Size(3,3), 0, 0);
+            cv::threshold(enhanced, enhanced, 210, 255, cv::THRESH_BINARY);
+
+            // Invert the mask
+            bitwise_not(enhanced, enhanced);
         } break;
 
         case ChannelType::GREEN: {
-            cv::GaussianBlur(src_gray, src_gray, cv::Size(3,3), 0, 0);
-            cv::threshold(src_gray, enhanced, 25, 255, cv::THRESH_BINARY);
+            // Enhance the green channel
+            cv::GaussianBlur(src_gray, enhanced, cv::Size(3,3), 0, 0);
+            cv::threshold(enhanced, enhanced, 25, 255, cv::THRESH_BINARY);
         } break;
 
         case ChannelType::RED_LOW: {
@@ -55,12 +63,12 @@ bool enhanceImage(cv::Mat src, ChannelType channel_type, cv::Mat *dst) {
             cv::threshold(src_gray, src_gray, 20, 255, cv::THRESH_TOZERO);
             cv::threshold(src_gray, src_gray, 150, 255, cv::THRESH_TRUNC);
             bitwise_not(src_gray, src_gray);
-            cv::GaussianBlur(src_gray, enhanced, cv::Size(25,25), 0, 0);
+            cv::GaussianBlur(src_gray, enhanced, cv::Size(15,15), 0, 0);
             cv::threshold(enhanced, enhanced, 210, 255, cv::THRESH_BINARY);
 
             // Enhance the low intensity features
             cv::Mat red_low_gauss;
-            cv::GaussianBlur(red_low, red_low_gauss, cv::Size(25,25), 0, 0);
+            cv::GaussianBlur(red_low, red_low_gauss, cv::Size(15,15), 0, 0);
             bitwise_and(red_low_gauss, enhanced, enhanced);
             cv::threshold(enhanced, enhanced, 240, 255, cv::THRESH_TOZERO_INV);
             cv::threshold(enhanced, enhanced, 50, 255, cv::THRESH_BINARY);
@@ -73,7 +81,7 @@ bool enhanceImage(cv::Mat src, ChannelType channel_type, cv::Mat *dst) {
             cv::threshold(src_gray, src_gray, 20, 255, cv::THRESH_TOZERO);
             cv::threshold(src_gray, src_gray, 150, 255, cv::THRESH_TRUNC);
             bitwise_not(src_gray, src_gray);
-            cv::GaussianBlur(src_gray, enhanced, cv::Size(25,25), 0, 0);
+            cv::GaussianBlur(src_gray, enhanced, cv::Size(15,15), 0, 0);
             cv::threshold(enhanced, enhanced, 210, 255, cv::THRESH_BINARY);
 
             // Invert the mask
@@ -173,7 +181,7 @@ void classifyNeuronsAndAstrocytes(std::vector<std::vector<cv::Point>> blue_conto
             bitwise_and(drawing, blue_green_intersection, contour_intersection);
             int contour_count_after = countNonZero(contour_intersection);
             float coverage_ratio = ((float)contour_count_after)/contour_count_before;
-            if (coverage_ratio < 0.5) {
+            if (coverage_ratio < 0.25) {
                 astrocyte_contours->push_back(blue_contours[i]);
             } else {
                 // Calculate the aspect ratio of the blue contour,
