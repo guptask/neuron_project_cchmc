@@ -1,10 +1,5 @@
 # Project specific
 segment
-segdist
 tags
-*.txt
-a.out
 *.o
-data
-result
 opencv
