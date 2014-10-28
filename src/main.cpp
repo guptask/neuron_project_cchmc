@@ -384,17 +384,22 @@ bool processDir(std::string dir_name, std::string out_file) {
             out_green.insert(out_green.find_first_of("."), "_enhanced", 9);
             cv::imwrite(out_green.c_str(), green_enhanced);
 
+            // Red channel
+            cv::Mat red_merge;
+            cv::merge(red, red_merge);
+            std::string out_red = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
+                                    + "_red_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
+            if (DEBUG_FLAG) cv::imwrite(out_red.c_str(), red_merge);
+
             // Red channel - Lower intensity
-            cv::Mat red_merge, red_low_enhanced, red_low_segmented;
+            cv::Mat red_low_enhanced, red_low_segmented;
             std::vector<std::vector<cv::Point>> contours_red_low;
             std::vector<cv::Vec4i> hierarchy_red_low;
             std::vector<HierarchyType> red_low_contour_mask;
             std::vector<double> red_low_contour_area;
 
-            cv::merge(red, red_merge);
             std::string out_red_low = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
                                     + "_red_low_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
-            if (DEBUG_FLAG) cv::imwrite(out_red_low.c_str(), red_merge);
             if(!enhanceImage(red_merge, ChannelType::RED_LOW, &red_low_enhanced)) {
                 return false;
             }
