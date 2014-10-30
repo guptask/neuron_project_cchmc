@@ -2,6 +2,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <fstream>
+#include <math.h>
 
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/imgcodecs.hpp"
@@ -9,6 +10,7 @@
 #define NUM_Z_LAYERS            3   // Merge a certain number of z layers
 #define NUM_SYNAPSE_AREA_BINS   21  // Number of bins
 #define SYNAPSE_BIN_AREA        25  // Bin area
+#define NEURON_ROI_FACTOR       3   // Roi of neuron = roi_factor*mean_neuron_diameter
 #define DEBUG_FLAG              1   // Debug flag for image channels
 
 /* Channel type */
@@ -222,19 +224,26 @@ void neuronAstroSepMetrics(std::vector<std::vector<cv::Point>> astrocyte_contour
                                             static_cast<float>(mu.m01/mu.m00));
     }
 
-    // Calculate the mid point of all neurons
+    // Calculate the mid point and diameter of all neurons
     std::vector<cv::Point2f> mc_neuron(neuron_contours.size());
+    std::vector<float> neuron_diameter(neuron_contours.size());
     for (size_t i = 0; i < neuron_contours.size(); i++) {
         cv::Moments mu = moments(neuron_contours[i], true);
         mc_neuron[i] = cv::Point2f(static_cast<float>(mu.m10/mu.m00), 
                                             static_cast<float>(mu.m01/mu.m00));
+        cv::RotatedRect min_area_rect = minAreaRect(cv::Mat(neuron_contours[i]));
+        neuron_diameter[i] = (float) sqrt(pow(min_area_rect.size.width, 2) + 
+                                                pow(min_area_rect.size.height, 2));
     }
+    cv::Scalar mean_diameter, stddev_diameter;
+    cv::meanStdDev(neuron_diameter, mean_diameter, stddev_diameter);
 
     // Compute the normal distribution parameters of astrocyte count per neuron
+    float neuron_roi = (NEURON_ROI_FACTOR * mean_diameter.val[0])/2;
     std::vector<float> count(neuron_contours.size(), 0.0);
     for (size_t i = 0; i < neuron_contours.size(); i++) {
         for (size_t j = 0; j < astrocyte_contours.size(); j++) {
-            if (cv::norm(mc_neuron[i] - mc_astrocyte[j]) <= 500.0) {
+            if (cv::norm(mc_neuron[i] - mc_astrocyte[j]) <= neuron_roi) {
                 count[i]++;
             }
         }
