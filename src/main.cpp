@@ -440,6 +440,20 @@ bool processDir(std::string dir_name, std::string out_file) {
             out_red_high.insert(out_red_high.find_first_of("."), "_segmented", 10);
             if(DEBUG_FLAG) cv::imwrite(out_red_high.c_str(), red_high_segmented);
 
+            // Draw the red high-low regions after categorization
+            cv::Mat drawing_red = cv::Mat::zeros(red_low_enhanced.size(), CV_8UC1);
+            for (size_t i = 0; i < contours_red_high.size(); i++) {
+                drawContours(drawing_red, contours_red_high, (int)i, 255, 
+                                cv::FILLED, cv::LINE_8, hierarchy_red_high);
+            }
+            for (size_t i = 0; i < contours_red_low.size(); i++) {
+                drawContours(drawing_red, contours_red_low, (int)i, 100, 
+                                cv::FILLED, cv::LINE_8, hierarchy_red_low);
+            }
+            std::string out_red_final = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
+                                    + "_" + std::to_string(NUM_Z_LAYERS) + "layers_red.tif";
+            cv::imwrite(out_red_final.c_str(), drawing_red);
+
 
             /** Extract multi-dimensional features for analysis **/
 
@@ -468,7 +482,7 @@ bool processDir(std::string dir_name, std::string out_file) {
                                 cv::LINE_8, std::vector<cv::Vec4i>(), 0, cv::Point());
             }
             std::string out_blue_final = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
-                                    + "_blue_" + std::to_string(NUM_Z_LAYERS) + "layers_cells.tif";
+                                    + "_" + std::to_string(NUM_Z_LAYERS) + "layers_cells.tif";
             cv::imwrite(out_blue_final.c_str(), drawing_blue);
 
             // Calculate metrics for astrocytes-neurons separation
@@ -556,7 +570,7 @@ bool processDir(std::string dir_name, std::string out_file) {
                                 cv::FILLED, cv::LINE_8, hierarchy_green_red_low);
             }
             std::string out_green_red_final = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
-                                    + "_blue_" + std::to_string(NUM_Z_LAYERS) + "layers_green_red.tif";
+                                    + "_" + std::to_string(NUM_Z_LAYERS) + "layers_green_red.tif";
             cv::imwrite(out_green_red_final.c_str(), drawing_green_red);
         }
     }
