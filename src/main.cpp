@@ -11,7 +11,7 @@
 #define NUM_SYNAPSE_AREA_BINS   21  // Number of bins
 #define SYNAPSE_BIN_AREA        25  // Bin area
 #define NEURON_ROI_FACTOR       3   // Roi of neuron = roi_factor*mean_neuron_diameter
-#define DEBUG_FLAG              1   // Debug flag for image channels
+#define DEBUG_FLAG              0   // Debug flag for image channels
 
 /* Channel type */
 enum class ChannelType : unsigned char {
@@ -182,7 +182,7 @@ void classifyNeuronsAndAstrocytes(std::vector<std::vector<cv::Point>> blue_conto
 
             // Determine whether cell is a neuron by calculating blue-green coverage area
             std::vector<std::vector<cv::Point>> specific_contour (1, blue_contours[i]);
-            cv::Mat drawing = cv::Mat::zeros(blue_green_intersection.size(), CV_8U);
+            cv::Mat drawing = cv::Mat::zeros(blue_green_intersection.size(), CV_8UC1);
             drawContours(drawing, specific_contour, -1, cv::Scalar::all(255), cv::FILLED, 
                             cv::LINE_8, std::vector<cv::Vec4i>(), 0, cv::Point());
             int contour_count_before = countNonZero(drawing);
@@ -374,12 +374,12 @@ bool processDir(std::string dir_name, std::string out_file) {
                 return false;
             }
             out_blue.insert(out_blue.find_first_of("."), "_enhanced", 9);
-            cv::imwrite(out_blue.c_str(), blue_enhanced);
+            if(DEBUG_FLAG) cv::imwrite(out_blue.c_str(), blue_enhanced);
             contourCalc(blue_enhanced, ChannelType::BLUE, 100.00, &blue_segmented, 
                             &contours_blue, &hierarchy_blue, &blue_contour_mask, 
                             &blue_contour_area);
             out_blue.insert(out_blue.find_first_of("."), "_segmented", 10);
-            cv::imwrite(out_blue.c_str(), blue_segmented);
+            if(DEBUG_FLAG) cv::imwrite(out_blue.c_str(), blue_segmented);
 
             // Green channel
             cv::Mat green_merge, green_enhanced;
@@ -391,7 +391,7 @@ bool processDir(std::string dir_name, std::string out_file) {
                 return false;
             }
             out_green.insert(out_green.find_first_of("."), "_enhanced", 9);
-            cv::imwrite(out_green.c_str(), green_enhanced);
+            if(DEBUG_FLAG) cv::imwrite(out_green.c_str(), green_enhanced);
 
             // Red channel
             cv::Mat red_merge;
@@ -413,12 +413,12 @@ bool processDir(std::string dir_name, std::string out_file) {
                 return false;
             }
             out_red_low.insert(out_red_low.find_first_of("."), "_enhanced", 9);
-            cv::imwrite(out_red_low.c_str(), red_low_enhanced);
+            if(DEBUG_FLAG) cv::imwrite(out_red_low.c_str(), red_low_enhanced);
             contourCalc(red_low_enhanced, ChannelType::RED_LOW, 1.0, &red_low_segmented, 
                             &contours_red_low, &hierarchy_red_low, &red_low_contour_mask, 
                             &red_low_contour_area);
             out_red_low.insert(out_red_low.find_first_of("."), "_segmented", 10);
-            cv::imwrite(out_red_low.c_str(), red_low_segmented);
+            if(DEBUG_FLAG) cv::imwrite(out_red_low.c_str(), red_low_segmented);
 
             // Red channel - High intensity
             cv::Mat red_high_enhanced, red_high_segmented;
@@ -433,12 +433,12 @@ bool processDir(std::string dir_name, std::string out_file) {
                 return false;
             }
             out_red_high.insert(out_red_high.find_first_of("."), "_enhanced", 9);
-            cv::imwrite(out_red_high.c_str(), red_high_enhanced);
+            if(DEBUG_FLAG) cv::imwrite(out_red_high.c_str(), red_high_enhanced);
             contourCalc(red_high_enhanced, ChannelType::RED_HIGH, 1.0, &red_high_segmented, 
                             &contours_red_high, &hierarchy_red_high, &red_high_contour_mask, 
                             &red_high_contour_area);
             out_red_high.insert(out_red_high.find_first_of("."), "_segmented", 10);
-            cv::imwrite(out_red_high.c_str(), red_high_segmented);
+            if(DEBUG_FLAG) cv::imwrite(out_red_high.c_str(), red_high_segmented);
 
 
             /** Extract multi-dimensional features for analysis **/
@@ -453,19 +453,23 @@ bool processDir(std::string dir_name, std::string out_file) {
             std::vector<std::vector<cv::Point>> astrocyte_contours, neuron_contours;
             classifyNeuronsAndAstrocytes(contours_blue, blue_contour_mask, blue_green_intersection, 
                                                 &astrocyte_contours, &neuron_contours);
-            cv::RNG rng(12345);
-            cv::Mat drawing_blue = cv::Mat::zeros(blue_enhanced.size(), CV_32S);
-            for (size_t i = 0; i< neuron_contours.size(); i++) {
-                cv::Scalar color = cv::Scalar(rng.uniform(0, 255), 
-                                            rng.uniform(0,255), rng.uniform(0,255));
-                drawContours(drawing_blue, neuron_contours, (int)i, color, cv::FILLED, 
-                                cv::LINE_8, std::vector<cv::Vec4i>(), 0, cv::Point());
-            }
-            out_blue.insert(out_blue.find_first_of("."), "_neurons", 8);
-            cv::imwrite(out_blue.c_str(), drawing_blue);
             data_stream << dir_name << "," << std::to_string(z_index-NUM_Z_LAYERS+1) << "," 
                         << astrocyte_contours.size() + neuron_contours.size() << "," 
                         << astrocyte_contours.size() << "," << neuron_contours.size() << ",";
+
+            // Draw the categorized cells
+            cv::Mat drawing_blue = cv::Mat::zeros(blue_enhanced.size(), CV_8UC1);
+            for (size_t i = 0; i < neuron_contours.size(); i++) {
+                drawContours(drawing_blue, neuron_contours, (int)i, 255, cv::FILLED, 
+                                cv::LINE_8, std::vector<cv::Vec4i>(), 0, cv::Point());
+            }
+            for (size_t i = 0; i < astrocyte_contours.size(); i++) {
+                drawContours(drawing_blue, astrocyte_contours, (int)i, 100, cv::FILLED, 
+                                cv::LINE_8, std::vector<cv::Vec4i>(), 0, cv::Point());
+            }
+            std::string out_blue_final = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
+                                    + "_blue_" + std::to_string(NUM_Z_LAYERS) + "layers_cells.tif";
+            cv::imwrite(out_blue_final.c_str(), drawing_blue);
 
             // Calculate metrics for astrocytes-neurons separation
             float mean_astrocyte_proximity_cnt = 0.0, stddev_astrocyte_proximity_cnt = 0.0;
@@ -505,7 +509,7 @@ bool processDir(std::string dir_name, std::string out_file) {
                             &hierarchy_green_red_high, &green_red_high_contour_mask, 
                             &green_red_high_contour_area);
             out_green_red_high.insert(out_green_red_high.find_first_of("."), "_segmented", 10);
-            cv::imwrite(out_green_red_high.c_str(), green_red_high_segmented);
+            if(DEBUG_FLAG) cv::imwrite(out_green_red_high.c_str(), green_red_high_segmented);
 
             std::string green_red_high_intersection_bins;
             unsigned int green_red_high_contour_cnt;
@@ -532,7 +536,7 @@ bool processDir(std::string dir_name, std::string out_file) {
                             &hierarchy_green_red_low, &green_red_low_contour_mask, 
                             &green_red_low_contour_area);
             out_green_red_low.insert(out_green_red_low.find_first_of("."), "_segmented", 10);
-            cv::imwrite(out_green_red_low.c_str(), green_red_low_segmented);
+            if(DEBUG_FLAG) cv::imwrite(out_green_red_low.c_str(), green_red_low_segmented);
 
             std::string green_red_low_intersection_bins;
             unsigned int green_red_low_contour_cnt;
@@ -540,6 +544,20 @@ bool processDir(std::string dir_name, std::string out_file) {
                                 &green_red_low_intersection_bins, &green_red_low_contour_cnt);
             data_stream << green_red_low_contour_cnt << "," << green_red_low_intersection_bins 
                         << std::endl;
+
+            // Draw the green-red intersection areas after categorization
+            cv::Mat drawing_green_red = cv::Mat::zeros(green_enhanced.size(), CV_8UC1);
+            for (size_t i = 0; i < contours_green_red_high.size(); i++) {
+                drawContours(drawing_green_red, contours_green_red_high, (int)i, 255, 
+                                cv::FILLED, cv::LINE_8, hierarchy_green_red_high);
+            }
+            for (size_t i = 0; i < contours_green_red_low.size(); i++) {
+                drawContours(drawing_green_red, contours_green_red_low, (int)i, 100, 
+                                cv::FILLED, cv::LINE_8, hierarchy_green_red_low);
+            }
+            std::string out_green_red_final = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
+                                    + "_blue_" + std::to_string(NUM_Z_LAYERS) + "layers_green_red.tif";
+            cv::imwrite(out_green_red_final.c_str(), drawing_green_red);
         }
     }
     data_stream.close();
