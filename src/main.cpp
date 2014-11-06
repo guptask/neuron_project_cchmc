@@ -452,7 +452,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             }
             std::string out_red_final = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
                                     + "_" + std::to_string(NUM_Z_LAYERS) + "layers_red.tif";
-            cv::imwrite(out_red_final.c_str(), drawing_red);
+            if(DEBUG_FLAG) cv::imwrite(out_red_final.c_str(), drawing_red);
 
 
             /** Extract multi-dimensional features for analysis **/
@@ -483,7 +483,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             }
             std::string out_blue_final = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
                                     + "_" + std::to_string(NUM_Z_LAYERS) + "layers_cells.tif";
-            cv::imwrite(out_blue_final.c_str(), drawing_blue);
+            if(DEBUG_FLAG) cv::imwrite(out_blue_final.c_str(), drawing_blue);
 
             // Calculate metrics for astrocytes-neurons separation
             float mean_astrocyte_proximity_cnt = 0.0, stddev_astrocyte_proximity_cnt = 0.0;
@@ -571,7 +571,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             }
             std::string out_green_red_final = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
                                     + "_" + std::to_string(NUM_Z_LAYERS) + "layers_green_red.tif";
-            cv::imwrite(out_green_red_final.c_str(), drawing_green_red);
+            if(DEBUG_FLAG) cv::imwrite(out_green_red_final.c_str(), drawing_green_red);
 
             // Merge the 3 layers - blue final, green-red final and red final
             std::vector<cv::Mat> merge_final;
