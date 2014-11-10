@@ -322,7 +322,8 @@ bool processDir(std::string dir_name, std::string out_file) {
         mkdir(out_directory.c_str(), 0700);
     }
 
-    std::vector<cv::Mat> blue(NUM_Z_LAYERS), green(NUM_Z_LAYERS), red(NUM_Z_LAYERS);
+    std::vector<cv::Mat> blue(NUM_Z_LAYERS), green(NUM_Z_LAYERS), 
+                                red(NUM_Z_LAYERS), original(NUM_Z_LAYERS);
     for (uint8_t z_index = 1; z_index <= z_count; z_index++) {
 
         // Create the input filename and rgb stream output filenames
@@ -346,6 +347,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             std::cerr << "Invalid input filename" << std::endl;
             return false;
         }
+        original[(z_index-1)%NUM_Z_LAYERS] = img;
 
         std::vector<cv::Mat> channel(3);
         cv::split(img, channel);
@@ -578,12 +580,19 @@ bool processDir(std::string dir_name, std::string out_file) {
             merge_analysis.push_back(drawing_blue);
             merge_analysis.push_back(drawing_green_red);
             merge_analysis.push_back(drawing_red);
-
             cv::Mat color_analysis;
             cv::merge(merge_analysis, color_analysis);
-            std::string out_final = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
+            std::string out_processed = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
                                     + "_" + std::to_string(NUM_Z_LAYERS) + "layers_processed.tif";
-            cv::imwrite(out_final.c_str(), color_analysis);
+            cv::imwrite(out_processed.c_str(), color_analysis);
+
+            // Original image - blue, green and red
+            cv::Mat color_original, color_original_temp;
+            addWeighted(original[0], 0.5, original[1], 0.5, 0.0, color_original_temp);
+            addWeighted(color_original_temp, 0.67, original[2], 0.33, 0.0, color_original);
+            std::string out_original = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
+                                    + "_" + std::to_string(NUM_Z_LAYERS) + "layers_original.tif";
+            cv::imwrite(out_original.c_str(), color_original);
         }
     }
     data_stream.close();
