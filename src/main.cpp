@@ -587,9 +587,11 @@ bool processDir(std::string dir_name, std::string out_file) {
             cv::imwrite(out_processed.c_str(), color_analysis);
 
             // Original image - blue, green and red
-            cv::Mat color_original, color_original_temp;
-            addWeighted(original[0], 0.5, original[1], 0.5, 0.0, color_original_temp);
-            addWeighted(color_original_temp, 0.67, original[2], 0.33, 0.0, color_original);
+            cv::Mat color_original = original[0];
+            for (unsigned int i = 1; i < NUM_Z_LAYERS; i++) {
+                double beta = 1.0/(i+1);
+                addWeighted(color_original, 1.0 - beta, original[i], beta, 0.0, color_original);
+            }
             std::string out_original = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
                                     + "_" + std::to_string(NUM_Z_LAYERS) + "layers_original.tif";
             cv::imwrite(out_original.c_str(), color_original);
