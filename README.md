@@ -2,7 +2,7 @@
 
 ##Packages to install
 
-+ ###tiff library: 
++ ###tiff library (not required currently) : 
 >zip of the tiff library source files are present inside third\_party 
 directory. Follow the README inside for details.
 
