@@ -53,8 +53,15 @@ bool enhanceImage(cv::Mat src, ChannelType channel_type, cv::Mat *dst) {
 
         case ChannelType::GREEN: {
             // Enhance the green channel
+
+            // Create the mask
+            cv::threshold(src_gray, src_gray, 25, 255, cv::THRESH_TOZERO);
+            bitwise_not(src_gray, src_gray);
             cv::GaussianBlur(src_gray, enhanced, cv::Size(3,3), 0, 0);
-            cv::threshold(enhanced, enhanced, 25, 255, cv::THRESH_BINARY);
+            cv::threshold(enhanced, enhanced, 220, 255, cv::THRESH_BINARY);
+
+            // Invert the mask
+            bitwise_not(enhanced, enhanced);
         } break;
 
         case ChannelType::RED_LOW: {
@@ -62,15 +69,14 @@ bool enhanceImage(cv::Mat src, ChannelType channel_type, cv::Mat *dst) {
             cv::Mat red_low = src_gray;
 
             // Create the mask
-            cv::threshold(src_gray, src_gray, 20, 255, cv::THRESH_TOZERO);
-            cv::threshold(src_gray, src_gray, 150, 255, cv::THRESH_TRUNC);
+            cv::threshold(src_gray, src_gray, 80, 255, cv::THRESH_TOZERO);
             bitwise_not(src_gray, src_gray);
-            cv::GaussianBlur(src_gray, enhanced, cv::Size(15,15), 0, 0);
-            cv::threshold(enhanced, enhanced, 210, 255, cv::THRESH_BINARY);
+            cv::GaussianBlur(src_gray, enhanced, cv::Size(3,3), 0, 0);
+            cv::threshold(enhanced, enhanced, 220, 255, cv::THRESH_BINARY);
 
             // Enhance the low intensity features
             cv::Mat red_low_gauss;
-            cv::GaussianBlur(red_low, red_low_gauss, cv::Size(15,15), 0, 0);
+            cv::GaussianBlur(red_low, red_low_gauss, cv::Size(3,3), 0, 0);
             bitwise_and(red_low_gauss, enhanced, enhanced);
             cv::threshold(enhanced, enhanced, 240, 255, cv::THRESH_TOZERO_INV);
             cv::threshold(enhanced, enhanced, 50, 255, cv::THRESH_BINARY);
@@ -80,11 +86,10 @@ bool enhanceImage(cv::Mat src, ChannelType channel_type, cv::Mat *dst) {
             // Enhance the red channel higher intensities
 
             // Create the mask
-            cv::threshold(src_gray, src_gray, 20, 255, cv::THRESH_TOZERO);
-            cv::threshold(src_gray, src_gray, 150, 255, cv::THRESH_TRUNC);
+            cv::threshold(src_gray, src_gray, 80, 255, cv::THRESH_TOZERO);
             bitwise_not(src_gray, src_gray);
-            cv::GaussianBlur(src_gray, enhanced, cv::Size(15,15), 0, 0);
-            cv::threshold(enhanced, enhanced, 210, 255, cv::THRESH_BINARY);
+            cv::GaussianBlur(src_gray, enhanced, cv::Size(3,3), 0, 0);
+            cv::threshold(enhanced, enhanced, 220, 255, cv::THRESH_BINARY);
 
             // Invert the mask
             bitwise_not(enhanced, enhanced);
@@ -575,7 +580,14 @@ bool processDir(std::string dir_name, std::string out_file) {
                                     + "_" + std::to_string(NUM_Z_LAYERS) + "layers_green_red.tif";
             if(DEBUG_FLAG) cv::imwrite(out_green_red_final.c_str(), drawing_green_red);
 
-            // Analyzed image - blue, green-red intersection (high and low) and red (high and low)
+            /** Analyzed image - blue, green-red intersection (high and low) and red (high and low) **/
+
+            // Draw neuron boundaries
+            drawContours(drawing_red, neuron_contours, -1, cv::Scalar::all(255), cv::FILLED, 
+                            cv::LINE_8, std::vector<cv::Vec4i>(), 0, cv::Point());
+            drawContours(drawing_green_red, neuron_contours, -1, cv::Scalar::all(255), cv::FILLED, 
+                            cv::LINE_8, std::vector<cv::Vec4i>(), 0, cv::Point());
+
             std::vector<cv::Mat> merge_analysis;
             merge_analysis.push_back(drawing_blue);
             merge_analysis.push_back(drawing_green_red);
