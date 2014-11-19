@@ -583,10 +583,12 @@ bool processDir(std::string dir_name, std::string out_file) {
             /** Analyzed image - blue, green-red intersection (high and low) and red (high and low) **/
 
             // Draw neuron boundaries
-            drawContours(drawing_red, neuron_contours, -1, cv::Scalar::all(255), cv::FILLED, 
-                            cv::LINE_8, std::vector<cv::Vec4i>(), 0, cv::Point());
-            drawContours(drawing_green_red, neuron_contours, -1, cv::Scalar::all(255), cv::FILLED, 
-                            cv::LINE_8, std::vector<cv::Vec4i>(), 0, cv::Point());
+            for (size_t i = 0; i < neuron_contours.size(); i++) {
+                cv::RotatedRect min_ellipse = fitEllipse(cv::Mat(neuron_contours[i]));
+                ellipse(drawing_blue, min_ellipse, 0, 2, 8);
+                ellipse(drawing_green_red, min_ellipse, 255, 2, 8);
+                ellipse(drawing_red, min_ellipse, 0, 2, 8);
+            }
 
             std::vector<cv::Mat> merge_analysis;
             merge_analysis.push_back(drawing_blue);
