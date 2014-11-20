@@ -586,13 +586,21 @@ bool processDir(std::string dir_name, std::string out_file) {
             for (size_t i = 0; i < neuron_contours.size(); i++) {
                 cv::RotatedRect min_ellipse = fitEllipse(cv::Mat(neuron_contours[i]));
                 ellipse(drawing_blue, min_ellipse, 0, 2, 8);
-                ellipse(drawing_green_red, min_ellipse, 255, 2, 8);
+                ellipse(green_enhanced, min_ellipse, 0, 2, 8);
+                ellipse(drawing_red, min_ellipse, 255, 2, 8);
+            }
+
+            // Draw astrocyte boundaries
+            for (size_t i = 0; i < astrocyte_contours.size(); i++) {
+                cv::RotatedRect min_ellipse = fitEllipse(cv::Mat(astrocyte_contours[i]));
+                ellipse(drawing_blue, min_ellipse, 0, 2, 8);
+                ellipse(green_enhanced, min_ellipse, 255, 2, 8);
                 ellipse(drawing_red, min_ellipse, 0, 2, 8);
             }
 
             std::vector<cv::Mat> merge_analysis;
             merge_analysis.push_back(drawing_blue);
-            merge_analysis.push_back(drawing_green_red);
+            merge_analysis.push_back(green_enhanced);
             merge_analysis.push_back(drawing_red);
             cv::Mat color_analysis;
             cv::merge(merge_analysis, color_analysis);
