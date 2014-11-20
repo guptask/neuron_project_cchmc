@@ -18,3 +18,8 @@ To test sample opencv code, compile using
 
 Inside the project root directory, type **make** to build the project.
 A binary called **segment** will be created.
+
+Command to run the software: 
+**./segment <image directory with / at end> <image list> <error file> 
+<output csv file>**
+
