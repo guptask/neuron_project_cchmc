@@ -42,10 +42,10 @@ bool enhanceImage(cv::Mat src, ChannelType channel_type, cv::Mat *dst) {
             // Enhance the blue channel
 
             // Create the mask
-            cv::threshold(src_gray, src_gray, 10, 255, cv::THRESH_TOZERO);
+            cv::threshold(src_gray, src_gray, 50, 255, cv::THRESH_TOZERO);
             bitwise_not(src_gray, src_gray);
             cv::GaussianBlur(src_gray, enhanced, cv::Size(3,3), 0, 0);
-            cv::threshold(enhanced, enhanced, 210, 255, cv::THRESH_BINARY);
+            cv::threshold(enhanced, enhanced, 220, 255, cv::THRESH_BINARY);
 
             // Invert the mask
             bitwise_not(enhanced, enhanced);
