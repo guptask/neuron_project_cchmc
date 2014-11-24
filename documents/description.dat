@@ -1,0 +1,34 @@
+J.A. Harill et al. \cite{1} used automated mechanisms to analyze high-content images while studying 
+the chemical effects on synapse development. They used proprietory software provided by Cellomics 
+for their analysis. S.K.Schmitz et al. \cite{2} developed an image analysis routine SynD that can 
+automate the analysis of neuronal morphology. Though automated, SynD allows user interaction during 
+all its detection phases. The authors point out that an important aspect of SynD is its ability 
+to report the number of detected synapses as a function of distance from the soma. They also point 
+out that SynD can measure expression level of proteins of interest in the detected synapses. It can 
+compare this synaptic level with that in the cell soma.
+
+Figure 1 (flow chart) gives a detailed view of our image analysis framework. It is extremely 
+lightweight with low memory footprint. It has been designed with scalibility in mind i.e. capable of 
+bulk processing huge number of images related to neuronal morphology. The framework can process 
+images without any human supervision. It reports back a number of metric values upon completion. 
+Some of the prominent metrics used are:
+-> Cell count for neurons and astrocytes - individual and total counts
+-> Number of astrocytes within close proximity of any neuron (mean and standard deviation)
+-> High and low intensity synapse regions - individual and total count
+-> Categorize high and low intensity synapse regions into different bins based on their size
+-> Green-red(high and low) intersection - individual and total count of regions
+-> Categorize green-red(high and low) intersection regions into different bins based on their size
+
+This image analysis framework was developed using OpenCV version 2.4.9.
+
+
+References:
+1. Use of high content image analysis to detect chemical-induced changes in synaptogenesis in vitro
+Joshua A. Harrill, Brian L. Robinette, William R. Mundy; Toxicology in Vitro 25 (2011) 368–387
+
+2. Automated analysis of neuronal morphology, synapse number and synaptic recruitment
+Sabine K. Schmitz, J.J. Johannes Hjorth, Raoul M.S. Joemai, Rick Wijntjes, Susanne Eijgenraam, 
+Petra de Bruijn, Christina Georgiou, Arthur P.H. de Jong, Arjen van Ooyen, Matthijs Verhage, 
+L. Niels Cornelisse, Ruud F. Toonen, Wouter Veldkamp
+Journal of Neuroscience Methods 195 (2011) 185–193
+
