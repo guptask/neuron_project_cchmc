@@ -3,15 +3,35 @@ the chemical effects on synapse development. They used proprietory software prov
 for their analysis. S.K.Schmitz et al. \cite{2} developed an image analysis routine SynD that can 
 automate the analysis of neuronal morphology. Though automated, SynD allows user interaction during 
 all its detection phases. The authors point out that an important aspect of SynD is its ability 
-to report the number of detected synapses as a function of distance from the soma. They also point 
-out that SynD can measure expression level of proteins of interest in the detected synapses. It can 
+to report the number of detected synapses as a function of distance from the soma. They also mention 
+that SynD can measure expression level of proteins of interest in the detected synapses. It can 
 compare this synaptic level with that in the cell soma.
 
 Figure 1 (flow chart) gives a detailed view of our image analysis framework. It is extremely 
-lightweight with low memory footprint. It has been designed with scalibility in mind i.e. capable of 
-bulk processing huge number of images related to neuronal morphology. The framework can process 
-images without any human supervision. It reports back a number of metric values upon completion. 
-Some of the prominent metrics used are:
+lightweight with low memory footprint. It has been designed with scalibility in mind i.e. capable 
+of coarse-grained parallel processing of huge number of images related to neuronal morphology. The 
+framework can process images without any human supervision. It separates out a 3-D high-content 
+image into a series of 2-D dimensional z-stack layers. For each layer, the constituent red, green 
+and blue channels are analyzed separately. After grayscale convertion, each channel is transformed 
+into a negative. This allows us to use low-pass filters to retain the significant areas of interest 
+in that channel. In case of the blue and green channels, the filtered negative is reversed which 
+reveals the significant features needed for our analysis. Data from contour analysis of the blue 
+and green channels are used to count the number of cells in that image and also allows us to 
+categorize cells as either neurons or astrocytes. A blue channel contour with significant green 
+channel overlap is considered to be a neuron. This categorization mechanism is further refined by 
+using the dimension aspect ratio of cells. An elongated cell (with small dimension aspect ratio) 
+is usually an astrocyte.
+
+The red channels (high and low intensity) are analyzed for information about the synapses. The high 
+intensity red channel can be obtained by reversing the filtered negative of the red channel. The 
+low intensity content can be derived by feeding the filtered negative through a second filter, this 
+time a band-pass filter. Contour properties of both high and low intensity channels serve as an 
+important metric in our anaysis. The overlap regions between green and both red channels (high and 
+low) are also analyzed for their size.
+
+Metric values are calculated by the framework during image analysis. Some of the prominent metrics 
+used are:
+
 -> Cell count for neurons and astrocytes - individual and total counts
 -> Number of astrocytes within close proximity of any neuron (mean and standard deviation)
 -> High and low intensity synapse regions - individual and total count
