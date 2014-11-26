@@ -292,6 +292,16 @@ bool processDir(std::string dir_name, std::string out_file) {
         return false;
     }
 
+    // Create a alternative directory name for the data collection
+    // Replace '/' and ' ' with '_'
+    std::string dir_name_modified = dir_name;
+    std::size_t found = dir_name_modified.find("/");
+    dir_name_modified.replace(found, 1, "_");
+    found = dir_name_modified.find("/");
+    dir_name_modified.replace(found, 1, "_");
+    found = dir_name_modified.find(" ");
+    dir_name_modified.replace(found, 1, "_");
+
     DIR *read_dir = opendir(dir_name.c_str());
     if (!read_dir) {
         std::cerr << "Could not open directory '" << dir_name << "'" << std::endl;
@@ -382,14 +392,19 @@ bool processDir(std::string dir_name, std::string out_file) {
             }
             out_blue.insert(out_blue.find_first_of("."), "_enhanced", 9);
             if(DEBUG_FLAG) cv::imwrite(out_blue.c_str(), blue_enhanced);
-            contourCalc(blue_enhanced, ChannelType::BLUE, 100.00, &blue_segmented, 
+            contourCalc(blue_enhanced, ChannelType::BLUE, 100.0, &blue_segmented, 
                             &contours_blue, &hierarchy_blue, &blue_contour_mask, 
                             &blue_contour_area);
             out_blue.insert(out_blue.find_first_of("."), "_segmented", 10);
             if(DEBUG_FLAG) cv::imwrite(out_blue.c_str(), blue_segmented);
 
             // Green channel
-            cv::Mat green_merge, green_enhanced;
+            cv::Mat green_merge, green_enhanced, green_segmented;
+            std::vector<std::vector<cv::Point>> contours_green;
+            std::vector<cv::Vec4i> hierarchy_green;
+            std::vector<HierarchyType> green_contour_mask;
+            std::vector<double> green_contour_area;
+
             cv::merge(green, green_merge);
             std::string out_green = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
                                     + "_green_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
@@ -399,6 +414,11 @@ bool processDir(std::string dir_name, std::string out_file) {
             }
             out_green.insert(out_green.find_first_of("."), "_enhanced", 9);
             if(DEBUG_FLAG) cv::imwrite(out_green.c_str(), green_enhanced);
+            contourCalc(green_enhanced, ChannelType::GREEN, 1.0, &green_segmented, 
+                            &contours_green, &hierarchy_green, &green_contour_mask, 
+                            &green_contour_area);
+            out_blue.insert(out_green.find_first_of("."), "_segmented", 10);
+            if(DEBUG_FLAG) cv::imwrite(out_green.c_str(), green_segmented);
 
             // Red channel
             cv::Mat red_merge;
@@ -474,7 +494,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             std::vector<std::vector<cv::Point>> astrocyte_contours, neuron_contours;
             classifyNeuronsAndAstrocytes(contours_blue, blue_contour_mask, blue_green_intersection, 
                                                 &astrocyte_contours, &neuron_contours);
-            data_stream << dir_name << "," << std::to_string(z_index-NUM_Z_LAYERS+1) << "," 
+            data_stream << dir_name_modified << std::to_string(z_index-NUM_Z_LAYERS+1) << "," 
                         << astrocyte_contours.size() + neuron_contours.size() << "," 
                         << astrocyte_contours.size() << "," << neuron_contours.size() << ",";
 
@@ -563,8 +583,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             unsigned int green_red_low_contour_cnt;
             binSynapseArea(green_red_low_contour_mask, green_red_low_contour_area, 
                                 &green_red_low_intersection_bins, &green_red_low_contour_cnt);
-            data_stream << green_red_low_contour_cnt << "," << green_red_low_intersection_bins 
-                        << std::endl;
+            data_stream << green_red_low_contour_cnt << "," << green_red_low_intersection_bins;
 
             // Draw the green-red intersection areas after categorization
             cv::Mat drawing_green_red = cv::Mat::zeros(green_enhanced.size(), CV_8UC1);
@@ -579,6 +598,12 @@ bool processDir(std::string dir_name, std::string out_file) {
             std::string out_green_red_final = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
                                     + "_" + std::to_string(NUM_Z_LAYERS) + "layers_green_red.tif";
             if(DEBUG_FLAG) cv::imwrite(out_green_red_final.c_str(), drawing_green_red);
+
+            // Calculate the metrics for green regions
+            std::string green_bins;
+            unsigned int green_contour_cnt;
+            binSynapseArea(green_contour_mask, green_contour_area, &green_bins, &green_contour_cnt);
+            data_stream << green_contour_cnt << "," << green_bins << std::endl;
 
             /** Analyzed image - blue, green-red intersection (high and low) and red (high and low) **/
 
@@ -667,7 +692,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    data_stream << "path/image,frame,total cell count,astrocyte count,neuron count,\
+    data_stream << "path_image_frame,total cell count,astrocyte count,neuron count,\
                     astrocytes per neuron - mean,astrocytes per neuron - std dev,\
                     total synapse count,low intensity synapse count,\
                     high intensity synapse count,";
@@ -700,6 +725,14 @@ int main(int argc, char *argv[]) {
                     << (i+1)*SYNAPSE_BIN_AREA << ",";
     }
     data_stream << "green-red low common area >= " 
+                << (NUM_SYNAPSE_AREA_BINS-1)*SYNAPSE_BIN_AREA << ",";
+
+    data_stream << "green count,";
+    for (unsigned int i = 0; i < NUM_SYNAPSE_AREA_BINS-1; i++) {
+        data_stream << i*SYNAPSE_BIN_AREA << " <= green area < " 
+                    << (i+1)*SYNAPSE_BIN_AREA << ",";
+    }
+    data_stream << "green area >= " 
                 << (NUM_SYNAPSE_AREA_BINS-1)*SYNAPSE_BIN_AREA << std::endl;
 
     data_stream.close();
