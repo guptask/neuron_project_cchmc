@@ -604,28 +604,44 @@ bool processDir(std::string dir_name, std::string out_file) {
             unsigned int green_contour_cnt;
             binSynapseArea(green_contour_mask, green_contour_area, &green_bins, &green_contour_cnt);
             data_stream << green_contour_cnt << "," << green_bins << std::endl;
+            cv::Mat drawing_green = cv::Mat::zeros(green_enhanced.size(), CV_8UC1);
+            for (size_t i = 0; i < contours_green.size(); i++) {
+                drawContours(drawing_green, contours_green, (int)i, 255, 
+                                    cv::FILLED, cv::LINE_8, hierarchy_green);
+            }
 
             /** Analyzed image - blue, green-red intersection (high and low) and red (high and low) **/
 
             // Draw neuron boundaries
             for (size_t i = 0; i < neuron_contours.size(); i++) {
                 cv::RotatedRect min_ellipse = fitEllipse(cv::Mat(neuron_contours[i]));
-                ellipse(drawing_blue, min_ellipse, 0, 2, 8);
-                ellipse(green_enhanced, min_ellipse, 0, 2, 8);
-                ellipse(drawing_red, min_ellipse, 255, 2, 8);
+                ellipse(drawing_blue, min_ellipse, 0, 4, 8);
+                ellipse(drawing_green, min_ellipse, 0, 4, 8);
+                ellipse(drawing_red, min_ellipse, 255, 4, 8);
             }
 
             // Draw astrocyte boundaries
             for (size_t i = 0; i < astrocyte_contours.size(); i++) {
                 cv::RotatedRect min_ellipse = fitEllipse(cv::Mat(astrocyte_contours[i]));
-                ellipse(drawing_blue, min_ellipse, 0, 2, 8);
-                ellipse(green_enhanced, min_ellipse, 255, 2, 8);
-                ellipse(drawing_red, min_ellipse, 0, 2, 8);
+                ellipse(drawing_blue, min_ellipse, 0, 4, 8);
+                ellipse(drawing_green, min_ellipse, 255, 4, 8);
+                ellipse(drawing_red, min_ellipse, 0, 4, 8);
             }
 
+            // Draw axon boundaries
+            for (size_t i = 0; i < contours_green.size(); i++) {
+                drawContours(drawing_blue, contours_green, (int)i, 255, 
+                                    2, cv::LINE_8, hierarchy_green);
+                drawContours(drawing_green, contours_green, (int)i, 0, 
+                                    2, cv::LINE_8, hierarchy_green);
+                drawContours(drawing_red, contours_green, (int)i, 128, 
+                                    2, cv::LINE_8, hierarchy_green);
+            }
+
+            // Merge the modified red, blue and green layers
             std::vector<cv::Mat> merge_analysis;
             merge_analysis.push_back(drawing_blue);
-            merge_analysis.push_back(green_enhanced);
+            merge_analysis.push_back(drawing_green);
             merge_analysis.push_back(drawing_red);
             cv::Mat color_analysis;
             cv::merge(merge_analysis, color_analysis);
