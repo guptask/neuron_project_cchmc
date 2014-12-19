@@ -1,6 +1,6 @@
 CXX= g++
 CXXFLAGS= -c -std=c++11 -Wall -Werror `pkg-config --cflags opencv`
-LDFLAGS= `pkg-config --libs opencv` -ltiff
+LDFLAGS= `pkg-config --libs opencv`
 SRC= src
 SOURCES= $(wildcard $(SRC)/*.cpp)
 INCLUDIR= $(wildcard $(SRC)/*.hpp)
