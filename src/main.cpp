@@ -16,7 +16,9 @@
 /* Channel type */
 enum class ChannelType : unsigned char {
     BLUE = 0,
-    GREEN,
+    GREEN_LOW,
+    GREEN_HIGH,
+    GREEN_COMBINED,
     RED_LOW,
     RED_HIGH
 };
@@ -51,8 +53,39 @@ bool enhanceImage(cv::Mat src, ChannelType channel_type, cv::Mat *dst) {
             bitwise_not(enhanced, enhanced);
         } break;
 
-        case ChannelType::GREEN: {
-            // Enhance the green channel
+        case ChannelType::GREEN_LOW: {
+            // Enhance the green channel low intensities
+            cv::Mat green_low = src_gray;
+
+            // Create the mask
+            cv::threshold(src_gray, src_gray, 50, 255, cv::THRESH_TOZERO);
+            bitwise_not(src_gray, src_gray);
+            cv::GaussianBlur(src_gray, enhanced, cv::Size(3,3), 0, 0);
+            cv::threshold(enhanced, enhanced, 200, 255, cv::THRESH_BINARY);
+
+            // Enhance the low intensity features
+            cv::Mat green_low_gauss;
+            cv::GaussianBlur(green_low, green_low_gauss, cv::Size(3,3), 0, 0);
+            bitwise_and(green_low_gauss, enhanced, enhanced);
+            cv::threshold(enhanced, enhanced, 250, 255, cv::THRESH_TOZERO_INV);
+            cv::threshold(enhanced, enhanced, 1, 255, cv::THRESH_BINARY);
+        } break;
+
+        case ChannelType::GREEN_HIGH: {
+            // Enhance the green channel high intensities
+
+            // Create the mask
+            cv::threshold(src_gray, src_gray, 50, 255, cv::THRESH_TOZERO);
+            bitwise_not(src_gray, src_gray);
+            cv::GaussianBlur(src_gray, enhanced, cv::Size(3,3), 0, 0);
+            cv::threshold(enhanced, enhanced, 200, 255, cv::THRESH_BINARY);
+
+            // Invert the mask
+            bitwise_not(enhanced, enhanced);
+        } break;
+
+        case ChannelType::GREEN_COMBINED: {
+            // Enhance the green channel (high and low combined)
 
             // Create the mask
             cv::threshold(src_gray, src_gray, 25, 255, cv::THRESH_TOZERO);
@@ -122,7 +155,8 @@ void contourCalc(cv::Mat src, ChannelType channel_type,
 
         case ChannelType::RED_LOW : 
         case ChannelType::RED_HIGH: 
-        case ChannelType::GREEN: {
+        case ChannelType::GREEN_LOW: 
+        case ChannelType::GREEN_HIGH: {
             findContours(temp_src, *contours, *hierarchy, cv::RETR_CCOMP, 
                                                         cv::CHAIN_APPROX_SIMPLE);
         } break;
@@ -399,26 +433,54 @@ bool processDir(std::string dir_name, std::string out_file) {
             if(DEBUG_FLAG) cv::imwrite(out_blue.c_str(), blue_segmented);
 
             // Green channel
-            cv::Mat green_merge, green_enhanced, green_segmented;
-            std::vector<std::vector<cv::Point>> contours_green;
-            std::vector<cv::Vec4i> hierarchy_green;
-            std::vector<HierarchyType> green_contour_mask;
-            std::vector<double> green_contour_area;
-
+            cv::Mat green_merge, green_enhanced;
             cv::merge(green, green_merge);
             std::string out_green = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
                                     + "_green_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
             if (DEBUG_FLAG) cv::imwrite(out_green.c_str(), green_merge);
-            if(!enhanceImage(green_merge, ChannelType::GREEN, &green_enhanced)) {
+            if(!enhanceImage(green_merge, ChannelType::GREEN_COMBINED, &green_enhanced)) {
                 return false;
             }
             out_green.insert(out_green.find_first_of("."), "_enhanced", 9);
             if(DEBUG_FLAG) cv::imwrite(out_green.c_str(), green_enhanced);
-            contourCalc(green_enhanced, ChannelType::GREEN, 1.0, &green_segmented, 
-                            &contours_green, &hierarchy_green, &green_contour_mask, 
-                            &green_contour_area);
-            out_blue.insert(out_green.find_first_of("."), "_segmented", 10);
-            if(DEBUG_FLAG) cv::imwrite(out_green.c_str(), green_segmented);
+
+            // Green channel - Low intensity
+            cv::Mat green_low_enhanced, green_low_segmented;
+            std::vector<std::vector<cv::Point>> contours_green_low;
+            std::vector<cv::Vec4i> hierarchy_green_low;
+            std::vector<HierarchyType> green_low_contour_mask;
+            std::vector<double> green_low_contour_area;
+            if(!enhanceImage(green_merge, ChannelType::GREEN_LOW, &green_low_enhanced)) {
+                return false;
+            }
+            std::string out_green_low = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
+                                    + "_green_low_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
+            out_green_low.insert(out_green_low.find_first_of("."), "_enhanced", 9);
+            if(DEBUG_FLAG) cv::imwrite(out_green_low.c_str(), green_low_enhanced);
+            contourCalc(green_low_enhanced, ChannelType::GREEN_LOW, 1.0, &green_low_segmented, 
+                            &contours_green_low, &hierarchy_green_low, &green_low_contour_mask, 
+                            &green_low_contour_area);
+            out_green_low.insert(out_green_low.find_first_of("."), "_segmented", 10);
+            if(DEBUG_FLAG) cv::imwrite(out_green_low.c_str(), green_low_segmented);
+
+            // Green channel - High intensity
+            cv::Mat green_high_enhanced, green_high_segmented;
+            std::vector<std::vector<cv::Point>> contours_green_high;
+            std::vector<cv::Vec4i> hierarchy_green_high;
+            std::vector<HierarchyType> green_high_contour_mask;
+            std::vector<double> green_high_contour_area;
+            if(!enhanceImage(green_merge, ChannelType::GREEN_HIGH, &green_high_enhanced)) {
+                return false;
+            }
+            std::string out_green_high = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
+                                    + "_green_high_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
+            out_green_high.insert(out_green_high.find_first_of("."), "_enhanced", 9);
+            if(DEBUG_FLAG) cv::imwrite(out_green_high.c_str(), green_high_enhanced);
+            contourCalc(green_high_enhanced, ChannelType::GREEN_HIGH, 1.0, &green_high_segmented, 
+                            &contours_green_high, &hierarchy_green_high, &green_high_contour_mask, 
+                            &green_high_contour_area);
+            out_green_high.insert(out_green_high.find_first_of("."), "_segmented", 10);
+            if(DEBUG_FLAG) cv::imwrite(out_green_high.c_str(), green_high_segmented);
 
             // Red channel
             cv::Mat red_merge;
@@ -600,15 +662,27 @@ bool processDir(std::string dir_name, std::string out_file) {
             if(DEBUG_FLAG) cv::imwrite(out_green_red_final.c_str(), drawing_green_red);
 
             // Calculate the metrics for green regions
-            std::string green_bins;
-            unsigned int green_contour_cnt;
-            binSynapseArea(green_contour_mask, green_contour_area, &green_bins, &green_contour_cnt);
-            data_stream << green_contour_cnt << "," << green_bins << std::endl;
-            cv::Mat drawing_green = cv::Mat::zeros(green_enhanced.size(), CV_8UC1);
-            for (size_t i = 0; i < contours_green.size(); i++) {
-                drawContours(drawing_green, contours_green, (int)i, 255, 
-                                    cv::FILLED, cv::LINE_8, hierarchy_green);
+            std::string green_high_bins, green_low_bins;
+            unsigned int green_high_contour_cnt, green_low_contour_cnt;
+
+            binSynapseArea(green_high_contour_mask, green_high_contour_area, 
+                                    &green_high_bins, &green_high_contour_cnt);
+            data_stream << green_high_contour_cnt << "," << green_high_bins;
+
+            binSynapseArea(green_low_contour_mask, green_low_contour_area, 
+                                    &green_low_bins, &green_low_contour_cnt);
+            data_stream << green_low_contour_cnt << "," << green_low_bins;
+
+            cv::Mat drawing_green = cv::Mat::zeros(green_high_enhanced.size(), CV_8UC1);
+            for (size_t i = 0; i < contours_green_high.size(); i++) {
+                drawContours(drawing_green, contours_green_high, (int)i, 255, 
+                                    cv::FILLED, cv::LINE_8, hierarchy_green_high);
             }
+            for (size_t i = 0; i < contours_green_low.size(); i++) {
+                drawContours(drawing_green, contours_green_low, (int)i, 255, 
+                                    cv::FILLED, cv::LINE_8, hierarchy_green_low);
+            }
+            data_stream << std::endl;
 
             /** Analyzed image - blue, green-red intersection (high and low) and red (high and low) **/
 
@@ -628,14 +702,14 @@ bool processDir(std::string dir_name, std::string out_file) {
                 ellipse(drawing_red, min_ellipse, 0, 4, 8);
             }
 
-            // Draw axon boundaries
-            for (size_t i = 0; i < contours_green.size(); i++) {
-                drawContours(drawing_blue, contours_green, (int)i, 255, 
-                                    2, cv::LINE_8, hierarchy_green);
-                drawContours(drawing_green, contours_green, (int)i, 0, 
-                                    2, cv::LINE_8, hierarchy_green);
-                drawContours(drawing_red, contours_green, (int)i, 128, 
-                                    2, cv::LINE_8, hierarchy_green);
+            // Draw upper layer axon boundaries
+            for (size_t i = 0; i < contours_green_high.size(); i++) {
+                drawContours(drawing_blue, contours_green_high, (int)i, 255, 
+                                    2, cv::LINE_8, hierarchy_green_high);
+                drawContours(drawing_green, contours_green_high, (int)i, 0, 
+                                    2, cv::LINE_8, hierarchy_green_high);
+                drawContours(drawing_red, contours_green_high, (int)i, 128, 
+                                    2, cv::LINE_8, hierarchy_green_high);
             }
 
             // Merge the modified red, blue and green layers
@@ -743,14 +817,23 @@ int main(int argc, char *argv[]) {
     data_stream << "green-red low common area >= " 
                 << (NUM_SYNAPSE_AREA_BINS-1)*SYNAPSE_BIN_AREA << ",";
 
-    data_stream << "green count,";
+    data_stream << "green high count,";
     for (unsigned int i = 0; i < NUM_SYNAPSE_AREA_BINS-1; i++) {
-        data_stream << i*SYNAPSE_BIN_AREA << " <= green area < " 
+        data_stream << i*SYNAPSE_BIN_AREA << " <= green high area < " 
                     << (i+1)*SYNAPSE_BIN_AREA << ",";
     }
-    data_stream << "green area >= " 
-                << (NUM_SYNAPSE_AREA_BINS-1)*SYNAPSE_BIN_AREA << std::endl;
+    data_stream << "green high area >= " 
+                << (NUM_SYNAPSE_AREA_BINS-1)*SYNAPSE_BIN_AREA << ",";
 
+    data_stream << "green low count,";
+    for (unsigned int i = 0; i < NUM_SYNAPSE_AREA_BINS-1; i++) {
+        data_stream << i*SYNAPSE_BIN_AREA << " <= green low area < " 
+                    << (i+1)*SYNAPSE_BIN_AREA << ",";
+    }
+    data_stream << "green low area >= " 
+                << (NUM_SYNAPSE_AREA_BINS-1)*SYNAPSE_BIN_AREA << ",";
+
+    data_stream << std::endl;
     data_stream.close();
 
     for (auto& file_name : files) {
