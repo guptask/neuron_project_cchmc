@@ -5,6 +5,8 @@
 #include <math.h>
 
 #include "opencv2/imgproc/imgproc.hpp"
+//#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/photo/photo.hpp"
 #include "opencv2/imgcodecs.hpp"
 
 #define NUM_Z_LAYERS            3   // Merge a certain number of z layers
@@ -19,6 +21,7 @@ enum class ChannelType : unsigned char {
     GREEN_LOW,
     GREEN_HIGH,
     GREEN_COMBINED,
+    ENHANCE_AXON,
     RED_LOW,
     RED_HIGH
 };
@@ -29,6 +32,16 @@ enum class HierarchyType : unsigned char {
     CHILD_CNTR,
     PARENT_CNTR
 };
+
+/* Canny Edge Detection */
+void CannyThreshold(cv::Mat src, cv::Mat *dst) {
+
+    cv::Mat detected_edges;
+    blur(src, detected_edges, cv::Size(3,3));
+    Canny(detected_edges, detected_edges, 0, 255, 3);
+    *dst = cv::Scalar::all(0);
+    src.copyTo(*dst, detected_edges);
+}
 
 /* Enhance the image */
 bool enhanceImage(cv::Mat src, ChannelType channel_type, cv::Mat *dst) {
@@ -95,6 +108,14 @@ bool enhanceImage(cv::Mat src, ChannelType channel_type, cv::Mat *dst) {
 
             // Invert the mask
             bitwise_not(enhanced, enhanced);
+        } break;
+
+        case ChannelType::ENHANCE_AXON: {
+            // Create and enhance the axon boundary mask
+
+            cv::fastNlMeansDenoising(src_gray, src_gray, 3.0);
+            cv::threshold(src_gray, src_gray, 5, 255, cv::THRESH_BINARY);
+            CannyThreshold(src_gray, &enhanced);
         } break;
 
         case ChannelType::RED_LOW: {
@@ -443,6 +464,15 @@ bool processDir(std::string dir_name, std::string out_file) {
             }
             out_green.insert(out_green.find_first_of("."), "_enhanced", 9);
             if(DEBUG_FLAG) cv::imwrite(out_green.c_str(), green_enhanced);
+
+            // Axon boundary mask
+            cv::Mat axon_enhanced;
+            if(!enhanceImage(green_merge, ChannelType::ENHANCE_AXON, &axon_enhanced)) {
+                return false;
+            }
+            std::string out_axon = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
+                                    + "_axon_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
+            cv::imwrite(out_axon.c_str(), axon_enhanced);
 
             // Green channel - Low intensity
             cv::Mat green_low_enhanced, green_low_segmented;
