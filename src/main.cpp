@@ -446,12 +446,12 @@ bool processDir(std::string dir_name, std::string out_file) {
                 return false;
             }
             out_blue.insert(out_blue.find_first_of("."), "_enhanced", 9);
-            if(DEBUG_FLAG) cv::imwrite(out_blue.c_str(), blue_enhanced);
+            if (DEBUG_FLAG) cv::imwrite(out_blue.c_str(), blue_enhanced);
             contourCalc(blue_enhanced, ChannelType::BLUE, 100.0, &blue_segmented, 
                             &contours_blue, &hierarchy_blue, &blue_contour_mask, 
                             &blue_contour_area);
             out_blue.insert(out_blue.find_first_of("."), "_segmented", 10);
-            if(DEBUG_FLAG) cv::imwrite(out_blue.c_str(), blue_segmented);
+            if (DEBUG_FLAG) cv::imwrite(out_blue.c_str(), blue_segmented);
 
             // Green channel
             cv::Mat green_merge, green_enhanced;
@@ -463,7 +463,7 @@ bool processDir(std::string dir_name, std::string out_file) {
                 return false;
             }
             out_green.insert(out_green.find_first_of("."), "_enhanced", 9);
-            if(DEBUG_FLAG) cv::imwrite(out_green.c_str(), green_enhanced);
+            if (DEBUG_FLAG) cv::imwrite(out_green.c_str(), green_enhanced);
 
             // Axon boundary mask
             cv::Mat axon_enhanced;
@@ -472,7 +472,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             }
             std::string out_axon = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
                                     + "_axon_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
-            cv::imwrite(out_axon.c_str(), axon_enhanced);
+            if (DEBUG_FLAG) cv::imwrite(out_axon.c_str(), axon_enhanced);
 
             // Green channel - Low intensity
             cv::Mat green_low_enhanced, green_low_segmented;
@@ -486,12 +486,12 @@ bool processDir(std::string dir_name, std::string out_file) {
             std::string out_green_low = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
                                     + "_green_low_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
             out_green_low.insert(out_green_low.find_first_of("."), "_enhanced", 9);
-            if(DEBUG_FLAG) cv::imwrite(out_green_low.c_str(), green_low_enhanced);
+            if (DEBUG_FLAG) cv::imwrite(out_green_low.c_str(), green_low_enhanced);
             contourCalc(green_low_enhanced, ChannelType::GREEN_LOW, 1.0, &green_low_segmented, 
                             &contours_green_low, &hierarchy_green_low, &green_low_contour_mask, 
                             &green_low_contour_area);
             out_green_low.insert(out_green_low.find_first_of("."), "_segmented", 10);
-            if(DEBUG_FLAG) cv::imwrite(out_green_low.c_str(), green_low_segmented);
+            if (DEBUG_FLAG) cv::imwrite(out_green_low.c_str(), green_low_segmented);
 
             // Green channel - High intensity
             cv::Mat green_high_enhanced, green_high_segmented;
@@ -505,12 +505,12 @@ bool processDir(std::string dir_name, std::string out_file) {
             std::string out_green_high = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
                                     + "_green_high_" + std::to_string(NUM_Z_LAYERS) + "layers.tif";
             out_green_high.insert(out_green_high.find_first_of("."), "_enhanced", 9);
-            if(DEBUG_FLAG) cv::imwrite(out_green_high.c_str(), green_high_enhanced);
+            if (DEBUG_FLAG) cv::imwrite(out_green_high.c_str(), green_high_enhanced);
             contourCalc(green_high_enhanced, ChannelType::GREEN_HIGH, 1.0, &green_high_segmented, 
                             &contours_green_high, &hierarchy_green_high, &green_high_contour_mask, 
                             &green_high_contour_area);
             out_green_high.insert(out_green_high.find_first_of("."), "_segmented", 10);
-            if(DEBUG_FLAG) cv::imwrite(out_green_high.c_str(), green_high_segmented);
+            if (DEBUG_FLAG) cv::imwrite(out_green_high.c_str(), green_high_segmented);
 
             // Red channel
             cv::Mat red_merge;
@@ -532,12 +532,12 @@ bool processDir(std::string dir_name, std::string out_file) {
                 return false;
             }
             out_red_low.insert(out_red_low.find_first_of("."), "_enhanced", 9);
-            if(DEBUG_FLAG) cv::imwrite(out_red_low.c_str(), red_low_enhanced);
+            if (DEBUG_FLAG) cv::imwrite(out_red_low.c_str(), red_low_enhanced);
             contourCalc(red_low_enhanced, ChannelType::RED_LOW, 1.0, &red_low_segmented, 
                             &contours_red_low, &hierarchy_red_low, &red_low_contour_mask, 
                             &red_low_contour_area);
             out_red_low.insert(out_red_low.find_first_of("."), "_segmented", 10);
-            if(DEBUG_FLAG) cv::imwrite(out_red_low.c_str(), red_low_segmented);
+            if (DEBUG_FLAG) cv::imwrite(out_red_low.c_str(), red_low_segmented);
 
             // Red channel - High intensity
             cv::Mat red_high_enhanced, red_high_segmented;
@@ -552,12 +552,12 @@ bool processDir(std::string dir_name, std::string out_file) {
                 return false;
             }
             out_red_high.insert(out_red_high.find_first_of("."), "_enhanced", 9);
-            if(DEBUG_FLAG) cv::imwrite(out_red_high.c_str(), red_high_enhanced);
+            if (DEBUG_FLAG) cv::imwrite(out_red_high.c_str(), red_high_enhanced);
             contourCalc(red_high_enhanced, ChannelType::RED_HIGH, 1.0, &red_high_segmented, 
                             &contours_red_high, &hierarchy_red_high, &red_high_contour_mask, 
                             &red_high_contour_area);
             out_red_high.insert(out_red_high.find_first_of("."), "_segmented", 10);
-            if(DEBUG_FLAG) cv::imwrite(out_red_high.c_str(), red_high_segmented);
+            if (DEBUG_FLAG) cv::imwrite(out_red_high.c_str(), red_high_segmented);
 
             // Draw the red high-low regions after categorization
             cv::Mat drawing_red = cv::Mat::zeros(red_low_enhanced.size(), CV_8UC1);
@@ -571,7 +571,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             }
             std::string out_red_final = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
                                     + "_" + std::to_string(NUM_Z_LAYERS) + "layers_red.tif";
-            if(DEBUG_FLAG) cv::imwrite(out_red_final.c_str(), drawing_red);
+            if (DEBUG_FLAG) cv::imwrite(out_red_final.c_str(), drawing_red);
 
 
             /** Extract multi-dimensional features for analysis **/
@@ -602,7 +602,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             }
             std::string out_blue_final = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
                                     + "_" + std::to_string(NUM_Z_LAYERS) + "layers_cells.tif";
-            if(DEBUG_FLAG) cv::imwrite(out_blue_final.c_str(), drawing_blue);
+            if (DEBUG_FLAG) cv::imwrite(out_blue_final.c_str(), drawing_blue);
 
             // Calculate metrics for astrocytes-neurons separation
             float mean_astrocyte_proximity_cnt = 0.0, stddev_astrocyte_proximity_cnt = 0.0;
@@ -642,7 +642,7 @@ bool processDir(std::string dir_name, std::string out_file) {
                             &hierarchy_green_red_high, &green_red_high_contour_mask, 
                             &green_red_high_contour_area);
             out_green_red_high.insert(out_green_red_high.find_first_of("."), "_segmented", 10);
-            if(DEBUG_FLAG) cv::imwrite(out_green_red_high.c_str(), green_red_high_segmented);
+            if (DEBUG_FLAG) cv::imwrite(out_green_red_high.c_str(), green_red_high_segmented);
 
             std::string green_red_high_intersection_bins;
             unsigned int green_red_high_contour_cnt;
@@ -669,7 +669,7 @@ bool processDir(std::string dir_name, std::string out_file) {
                             &hierarchy_green_red_low, &green_red_low_contour_mask, 
                             &green_red_low_contour_area);
             out_green_red_low.insert(out_green_red_low.find_first_of("."), "_segmented", 10);
-            if(DEBUG_FLAG) cv::imwrite(out_green_red_low.c_str(), green_red_low_segmented);
+            if (DEBUG_FLAG) cv::imwrite(out_green_red_low.c_str(), green_red_low_segmented);
 
             std::string green_red_low_intersection_bins;
             unsigned int green_red_low_contour_cnt;
@@ -689,7 +689,7 @@ bool processDir(std::string dir_name, std::string out_file) {
             }
             std::string out_green_red_final = out_directory + "z" + std::to_string(z_index-NUM_Z_LAYERS+1) 
                                     + "_" + std::to_string(NUM_Z_LAYERS) + "layers_green_red.tif";
-            if(DEBUG_FLAG) cv::imwrite(out_green_red_final.c_str(), drawing_green_red);
+            if (DEBUG_FLAG) cv::imwrite(out_green_red_final.c_str(), drawing_green_red);
 
             // Calculate the metrics for green regions
             std::string green_high_bins, green_low_bins;
